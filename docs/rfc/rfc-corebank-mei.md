@@ -2,9 +2,16 @@
 
 | | |
 |---|---|
+| **Status** | **Substituída / Superseded (Consulte [RFC 01](rfc-01-core-customer-accounts.md) e [RFC 02](rfc-02-transactions-ledger.md))** |
 | **Time** | João Pedro Calsavara |
 | **Data** | 19/09/2026 |
-| **Versão** | 1 |
+| **Versão** | 1 (Legada / Monolítica Inicial) |
+
+> [!WARNING]
+> **Esta RFC foi modularizada e aprofundada em duas RFCs oficiais ativas:**
+> 1. [**RFC 01 — Core Identity: Clientes (Customers) e Contas Vinculadas (PF e PJ)**](rfc-01-core-customer-accounts.md): cobre o onboarding unificado, modelo de `Customer`, contas vinculadas (`BUSINESS` e `PERSONAL`), autenticação JWT, PIN transacional e ciclo de vida de contas.
+> 2. [**RFC 02 — Core Transactions: Motor Financeiro e Ledger de Partidas Dobradas**](rfc-02-transactions-ledger.md): cobre o motor de transferências, ordenação de Dijkstra contra deadlocks, tabela dedicada de idempotência com TTL de 24h, estornos sem saldo negativo e extrato enriquecido.
+
 
 ## Contextualização
 

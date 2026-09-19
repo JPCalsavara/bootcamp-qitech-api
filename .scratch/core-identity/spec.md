@@ -94,4 +94,5 @@ Criar o subsistema de **Core Identity** do CoreBank MEI com **Onboarding Unifica
 ## Further Notes
 
 - All monetary values are strictly represented in integer cents (`BIGINT`).
-- The spec aligns with [ADR-0001](file:///home/jpcalsavara/projetos/andamento/bootcamp-qitech-api/docs/adr/0001-apenas-testes-de-integracao.md), [RFC 01](file:///home/jpcalsavara/projetos/andamento/bootcamp-qitech-api/docs/rfc-01-users-parties-accounts.md), and [CONTEXT.md](file:///home/jpcalsavara/projetos/andamento/bootcamp-qitech-api/CONTEXT.md).
+- The spec aligns with [ADR-0001](file:///home/jpcalsavara/projetos/andamento/bootcamp-qitech-api/docs/adr/0001-apenas-testes-de-integracao.md), [RFC 01](file:///home/jpcalsavara/projetos/andamento/bootcamp-qitech-api/docs/rfc/rfc-01-core-customer-accounts.md), and [CONTEXT.md](file:///home/jpcalsavara/projetos/andamento/bootcamp-qitech-api/CONTEXT.md).
+
