@@ -118,6 +118,7 @@ Registros formais de decisões técnicas fundamentadas no material de engenharia
 │ ADR-003  │ Arquitetura Contábil Imutável com Partidas Dobradas (Append-Only)         │ APROVADO  │
 │ ADR-004  │ Desacoplamento de Chaves com UUID Público e Mitigação de IDOR             │ APROVADO  │
 │ ADR-005  │ Idempotência Estrita e Catálogo Semântico de Erros (RFC 9457 / QIT)      │ APROVADO  │
+│ ADR-006  │ Estados como Tabela de Domínio e Eventos Append-Only (Anti-ENUM)         │ APROVADO  │
 └──────────┴──────────────────────────────────────────────────────────────────────────┴───────────┘
 ```
 
@@ -222,3 +223,32 @@ Registros formais de decisões técnicas fundamentadas no material de engenharia
 * **Consequências:**
   - Eliminação de débitos acidentais provocados por retentativas de rede.
   - Integrações com clientes e parceiros tornam-se previsíveis e seguras.
+
+---
+
+### ADR-006: Estados como Tabela de Domínio e Histórico Append-Only (Anti-ENUM)
+
+* **Status:** Aprovado.
+* **Contexto:**
+  Entidades financeiras essenciais (como Contas e Transações) possuem ciclo de vida rigoroso (ex: `PENDING`, `ACTIVE`, `BLOCKED`, `CLOSED` para Contas; `PENDING`, `SETTLED`, `FAILED`, `REVERSED` para Transações). A modelagem com tipos `ENUM` nativos do PostgreSQL (`CREATE TYPE status AS ENUM`) ou colunas de texto livre (`VARCHAR`) introduz fragilidades graves:
+  - Modificar ou adicionar valores a um `ENUM` nativo em produção exige comandos DDL com trava de tabela (`EXCLUSIVE LOCK`), inviabiliza reversões simples e não permite associar metadados.
+  - Strings livres (`VARCHAR`) não possuem integridade referencial nativa no banco, permitindo falhas de digitação e inconsistências que passam despercebidas.
+  - Manter apenas uma coluna de status na entidade sobrescreve o estado anterior, destruindo a rastreabilidade temporal e a auditoria forense exigidas por órgãos reguladores (BACEN).
+
+* **Alternativas Descartadas:**
+  1. *Uso de ENUM nativo do PostgreSQL (`CREATE TYPE account_status AS ENUM`):* Descartada por travar tabelas em alterações de DDL, dificultar migrações zero-downtime e impedir extensão futura de metadados.
+  2. *Coluna VARCHAR livre sem validação relacional:* Descartada por não garantir integridade no banco, deixando a consistência refém exclusivamente do código de aplicação.
+  3. *Armazenar apenas o estado atual na entidade sem tabela de eventos:* Descartada porque sobrescrever o campo apaga a linha do tempo e impede a conciliação forense de auditoria.
+
+* **Decisão:**
+  - **Tabelas de Domínio para Status (`account_status`, `transaction_status`):** Estados vivem em tabelas próprias (`id SERIAL PRIMARY KEY`, `enumerator VARCHAR(50) UNIQUE NOT NULL`). A entidade armazena apenas `status_id INTEGER NOT NULL REFERENCES ..._status(id)`.
+  - **Tabelas de Eventos de Status (`account_status_event`, `transaction_status_event`):** Cada transição de estado grava atomicamente uma linha em tabela de histórico estritamente **Append-Only** contendo `from_status_id`, `to_status_id`, `event_datetime` e `reason`.
+  - **Máquina de Estados Centralizada no Controller:** O banco garante que o estado existe via chave estrangeira; o `Controller` aplica as regras de transição permitidas (ex: conta `CLOSED` ou transação `SETTLED` não sofrem novas mutações, respondendo com erro semântico `409 Conflict`).
+  - **Desacoplamento nos DTOs:** A API interna utiliza IDs inteiros para joins de alta performance; os DTOs traduzem o valor para a string semântica na resposta JSON (`account.status.enumerator`).
+
+* **Consequências:**
+  - Integridade relacional garantida diretamente pelo PostgreSQL (sem risco de estados inválidos).
+  - Adição de novos estados com simples `INSERT`, sem qualquer bloqueio de tabela (DDL).
+  - Rastreabilidade forense total com linha do tempo de transições auditável.
+  - Custo de uma junção a mais por leitura (mitigado por índices nas chaves e relacionamentos `lazy="selectin"` no ORM).
+
