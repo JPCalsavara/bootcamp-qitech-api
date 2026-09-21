@@ -57,3 +57,10 @@ class CustomerController(BaseController):
         )
 
         return CustomerDTO.obj_to_dict(customer)
+
+    def get_by_key(self, customer_key: str) -> dict:
+        customer = self.customer_repository.get_by_key(customer_key)
+        if not customer:
+            raise NotFoundCustomer(customer_key)
+        return CustomerDTO.obj_to_dict(customer)
+

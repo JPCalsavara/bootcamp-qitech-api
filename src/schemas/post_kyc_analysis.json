@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PostKycAnalysis",
+  "type": "object",
+  "properties": {
+    "score": { "type": "integer", "minimum": 0, "maximum": 1000 },
+    "cnd_federal_status": { "type": "string" },
+    "cnd_trabalhista_status": { "type": "string" },
+    "cadsan_status": { "type": "string" },
+    "flags": { "type": "object" },
+    "risk_tier": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH"] }
+  },
+  "required": [],
+  "additionalProperties": false
+}
+

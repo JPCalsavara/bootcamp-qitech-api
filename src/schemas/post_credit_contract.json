@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PostCreditContract",
+  "type": "object",
+  "properties": {
+    "customer_key": { "type": "string" },
+    "account_pj_key": { "type": "string" },
+    "account_pf_key": { "type": "string" },
+    "requested_amount": { "type": "integer", "minimum": 10000 },
+    "term_months": { "type": "integer", "minimum": 1, "maximum": 36 },
+    "interest_rate_monthly": { "type": "number", "minimum": 0.001, "maximum": 0.20 },
+    "retention_percentage": { "type": "number", "minimum": 0.0, "maximum": 100.0 }
+  },
+  "required": [
+    "customer_key",
+    "account_pj_key",
+    "account_pf_key",
+    "requested_amount",
+    "term_months",
+    "interest_rate_monthly",
+    "retention_percentage"
+  ],
+  "additionalProperties": false
+}

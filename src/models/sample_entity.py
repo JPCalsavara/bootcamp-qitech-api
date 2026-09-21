@@ -2,7 +2,8 @@ from sqlalchemy import CHAR, Column, Date, DateTime, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from models.base import Base
-from models import SampleEntityStatus
+from models.sample_entity_status import SampleEntityStatus
+
 
 
 class SampleEntity(Base):

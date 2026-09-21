@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PostCharge",
+  "type": "object",
+  "properties": {
+    "method": { "type": "string", "enum": ["PIX", "BOLETO", "CREDIT_CARD_LINK"] },
+    "amount": { "type": "integer", "minimum": 100 },
+    "due_date": { "type": "string", "format": "date" },
+    "customer_document": { "type": "string" },
+    "metadata": { "type": "object" }
+  },
+  "required": ["method", "amount", "due_date"],
+  "additionalProperties": false
+}

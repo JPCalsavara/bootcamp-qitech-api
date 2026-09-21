@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PostCashIn",
+  "type": "object",
+  "properties": {
+    "account_key": { "type": "string" },
+    "amount": { "type": "integer", "minimum": 1 },
+    "fee_amount": { "type": "integer", "minimum": 0 },
+    "description": { "type": "string", "maxLength": 255 }
+  },
+  "required": ["account_key", "amount"],
+  "additionalProperties": false
+}

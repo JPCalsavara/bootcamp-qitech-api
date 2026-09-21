@@ -1,7 +1,9 @@
 from sqlalchemy import Column, ForeignKey, Integer, DateTime, func
 from models.base import Base
 from sqlalchemy.orm import relationship
-from models import SampleEntity, SampleEntityStatus
+from models.sample_entity import SampleEntity
+from models.sample_entity_status import SampleEntityStatus
+
 
 
 class SampleEntityStatusEvent(Base):

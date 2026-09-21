@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PostTransfer",
+  "type": "object",
+  "properties": {
+    "source_account_key": { "type": "string", "format": "uuid" },
+    "destination_account_key": { "type": "string", "format": "uuid" },
+    "amount": { "type": "integer", "minimum": 1 },
+    "description": { "type": "string", "maxLength": 255 }
+  },
+  "required": ["source_account_key", "destination_account_key", "amount"],
+  "additionalProperties": false
+}

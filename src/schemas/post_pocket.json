@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PostPocket",
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": ["DAS_IMPOSTOS", "RESERVA_EMERGENCIA", "TRAVA_CREDITO", "PRO_LABORE", "PERSONALIZADO"]
+    },
+    "name": { "type": "string", "maxLength": 100 },
+    "target_amount": { "type": "integer", "minimum": 0 },
+    "is_locked": { "type": "boolean" }
+  },
+  "required": ["type", "name"],
+  "additionalProperties": false
+}

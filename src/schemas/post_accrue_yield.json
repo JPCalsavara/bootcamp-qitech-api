@@ -1,0 +1,11 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PostAccrueYield",
+  "type": "object",
+  "properties": {
+    "account_key": { "type": "string" },
+    "cdi_daily_rate": { "type": "number", "minimum": 0.00001, "maximum": 0.01 }
+  },
+  "required": ["account_key"],
+  "additionalProperties": false
+}

@@ -9,161 +9,98 @@ from middlewares import (
     register_request_logger_middleware,
     register_session_manager_middleware,
 )
-from resources import HealthCheckResource, SampleEntityResource, CustomerResource
+from resources import (
+    AccountResource,
+    ChargeResource,
+    CreditResource,
+    CustomerResource,
+    HealthCheckResource,
+    KycResource,
+    PocketResource,
+    SampleEntityResource,
+    TransactionResource,
+    YieldResource,
+)
 from utils.logger import setup_logging
 
 
 def create_app() -> FastAPI:
-    """Monta a aplicação, peça por peça.
-
-    Os três blocos abaixo seguem a ordem em que a requisição encontra
-    cada um — de fora pra dentro:
-      1. os middlewares    — o que acontece com TODA requisição
-      2. as rotas          — o que a API sabe responder
-      3. os error handlers — como cada erro vira uma resposta
-
-    Essa ordem serve pra leitura, não é exigência: o FastAPI monta a
-    pilha de middlewares na primeira requisição que chega, então
-    registrar rota antes ou depois de middleware dá no mesmo. Só a
-    ordem DENTRO do bloco de middlewares tem consequência, e ela está
-    explicada logo abaixo.
-    """
-    # Os três None desligam a documentação automática: o FastAPI sabe
-    # gerar sozinho umas páginas descrevendo a API, e aqui elas não
-    # existem. Pra ver o que cada rota responde, mande uma requisição —
-    # tem exemplo pronto de cada uma no README.
     application = FastAPI(
-        docs_url=None,
-        redoc_url=None,
-        openapi_url=None,
+        title="Bootcamp QI Tech - MEI Financial Platform",
+        description="API bancária completa para o MEI: Onboarding seguro, contas gêmeas PF/PJ, ledger de partidas dobradas, liquidação bruta com tarifa atômica, crédito com trava de recebíveis, CDB 100% CDI e governança de caixinhas.",
+        version="1.0.0",
+        docs_url="/docs",
+        redoc_url="/redoc",
+        openapi_url="/openapi.json",
     )
 
-    # ────────────────────────────────────────────────────────────────
-    # Os middlewares — e a ordem deles, que é regra e não gosto
-    # ────────────────────────────────────────────────────────────────
-    # Middleware é uma camada por fora da aplicação: toda requisição
-    # atravessa todas elas na ida, e todas de novo na volta. São como
-    # cascas de cebola, e o ÚLTIMO registrado é a casca de FORA.
-    #
-    # Ou seja: destas quatro linhas, a de BAIXO é a primeira que a
-    # requisição encontra, e a de CIMA é a última. Lendo de fora para
-    # dentro, acontece isto:
-    #
-    #     requisição chega
-    #           ↓
-    #     request_context   dá um identificador único a esta requisição
-    #           ↓
-    #     request_logger    escreve "ENTROU" e, na volta, "SAIU"
-    #           ↓
-    #     internal_token    confere o INTERNAL-TOKEN. Sem ele, para aqui
-    #           ↓
-    #     session_manager   cuida da sessão de banco: desfaz se deu
-    #           ↓           errado, fecha sempre — e nunca salva
-    #           ↓
-    #     as rotas
-    #
-    # Cada posição tem um porquê, e trocar duas linhas muda o que a API
-    # faz:
-    #
-    # • O identificador vem ANTES do log: se viesse depois, as linhas de
-    #   log da requisição sairiam sem o nome dela, e o middleware
-    #   existiria para nada.
-    # • O log vem ANTES do token: assim a tentativa recusada com 403
-    #   também aparece no log — e essa é justamente a que você quer ver,
-    #   porque mil delas seguidas é alguém tentando adivinhar o token.
-    # • A sessão de banco fica por DENTRO do token, encostada nas
-    #   rotas: quem não passou na porta leva 403 na camada de cima e não
-    #   chega a ter uma sessão. É o mais interno de propósito — banco é
-    #   o recurso mais caro desta lista, e o último que se empresta.
-    #
-    # Nada disso é teoria, e dá pra ver com os olhos. Troque as duas
-    # últimas linhas de lugar (o identificador passa a ser registrado
-    # antes do log, ou seja, a executar DEPOIS dele), chame qualquer
-    # rota e olhe o log:
-    #
-    #     docker compose logs api | grep request_logger | tail -2
-    #
-    # (O grep é necessário: sem ele o tail pega a linha de acesso do
-    # uvicorn, que é outra coisa e não passa por este middleware.)
-    #
-    # As duas linhas saem com [-] no lugar do identificador: o log
-    # aconteceu antes de existir um nome para aquela requisição. Desfaça
-    # a troca e o nome volta.
-    #
-    # Repare no que essa experiência tem de incômodo: a suíte continua
-    # TODA VERDE com a ordem trocada. Nenhum teste aqui guarda esta
-    # ordem — o preço aparece no dia do incidente, quando o log não
-    # servir pra achar a requisição. Teste que não existe não avisa
-    # nada, e é por isso que este comentário existe.
-    #
-    # ATENÇÃO, e é aqui que quase todo mundo tropeça: as quatro linhas
-    # abaixo são o DIAGRAMA ACIMA DE TRÁS PRA FRENTE. O FastAPI embrulha
-    # a aplicação de dentro pra fora, então o ÚLTIMO registrado é o
-    # PRIMEIRO a executar. Leia de baixo pra cima e o diagrama volta.
+
     register_session_manager_middleware(application)
     register_internal_token_middleware(application)
     register_request_logger_middleware(application)
     register_request_context_middleware(application)
 
-    # ────────────────────────────────────────────────────────────────
-    # As rotas — o endereço, o verbo, e quem atende
-    # ────────────────────────────────────────────────────────────────
-    # Cada linha liga um endereço a um método de um resource. É a lista
-    # COMPLETA do que esta API atende: rota que não está aqui não
-    # existe, e não há um segundo lugar para procurar.
-    #
-    # Nos serviços da QI o framework é o Falcon, que descobre o método
-    # pelo nome — chegou um POST, ele procura um `on_post`, e o registro
-    # é uma linha por ENDEREÇO. O FastAPI não faz essa descoberta, então
-    # aqui é uma linha por endereço E verbo. Custa mais linhas; em troca,
-    # não existe rota que atenda sem estar escrita nesta lista.
-    #
-    # Repare no que NÃO está escrito aqui: o status de cada resposta.
-    # 201, 202, 204 — todos saem de dentro do resource, que é quem sabe
-    # se a coisa foi criada, agendada ou concluída. Esta lista diz QUEM
-    # atende cada endereço, e mais nada.
     health_check_resource = HealthCheckResource()
     sample_entity_resource = SampleEntityResource()
     customer_resource = CustomerResource()
+    account_resource = AccountResource()
+    transaction_resource = TransactionResource()
+    kyc_resource = KycResource()
+    charge_resource = ChargeResource()
+    credit_resource = CreditResource()
+    yield_resource = YieldResource()
+    pocket_resource = PocketResource()
 
+    # Health check
     application.add_api_route("/", health_check_resource.on_get_home, methods=["GET"])
-    application.add_api_route(
-        "/health_check",
-        health_check_resource.on_get_health_check,
-        methods=["GET"]
-    )
+    application.add_api_route("/health_check", health_check_resource.on_get_health_check, methods=["GET"])
 
-    application.add_api_route(
-        "/customers",
-        customer_resource.on_post,
-        methods=["POST"],
-    )
+    # Sample Entity
+    application.add_api_route("/sample_entity", sample_entity_resource.on_post, methods=["POST"])
+    application.add_api_route("/sample_entity/{sample_entity_key}", sample_entity_resource.on_get_by_key, methods=["GET"])
+    application.add_api_route("/sample_entity/{sample_entity_key}", sample_entity_resource.on_put_by_key, methods=["PUT"])
+    application.add_api_route("/webhook/sample_entity/{sample_entity_key}/increment_counter", sample_entity_resource.on_put_increment_counter, methods=["PUT"])
+    application.add_api_route("/sample_entities", sample_entity_resource.on_get_list, methods=["GET"])
 
-    application.add_api_route(
-        "/sample_entity",
-        sample_entity_resource.on_post,
-        methods=["POST"],
-    )
-    application.add_api_route(
-        "/sample_entity/{sample_entity_key}",
-        sample_entity_resource.on_get_by_key,
-        methods=["GET"],
-    )
-    application.add_api_route(
-        "/sample_entity/{sample_entity_key}",
-        sample_entity_resource.on_put_by_key,
-        methods=["PUT"],
-    )
-    application.add_api_route(
-        "/webhook/sample_entity/{sample_entity_key}/increment_counter",
-        sample_entity_resource.on_put_increment_counter,
-        methods=["PUT"],
-    )
-    application.add_api_route(
-        "/sample_entities",
-        sample_entity_resource.on_get_list,
-        methods=["GET"],
-    )
+    # RFC 01 & RFC 03: Customer & Onboarding
+    application.add_api_route("/customers", customer_resource.on_post, methods=["POST"])
+    application.add_api_route("/customers/{customer_key}", customer_resource.on_get_by_key, methods=["GET"])
+    application.add_api_route("/customers/{customer_key}/kyc/analysis", kyc_resource.on_post_analysis, methods=["POST"])
+
+    # RFC 01: Twin Accounts (PF & PJ) & Account Lifecycle
+    application.add_api_route("/customers/{customer_key}/accounts", account_resource.on_post_twin_accounts, methods=["POST"])
+    application.add_api_route("/customers/{customer_key}/accounts", account_resource.on_get_by_customer, methods=["GET"])
+    application.add_api_route("/accounts/{account_key}", account_resource.on_get_by_key, methods=["GET"])
+    application.add_api_route("/accounts/{account_key}/balance", account_resource.on_get_balance, methods=["GET"])
+    application.add_api_route("/accounts/{account_key}/status", account_resource.on_put_status, methods=["PUT"])
+    application.add_api_route("/accounts/{account_key}/blocked-balance", account_resource.on_put_blocked_balance, methods=["PUT"])
+
+    # RFC 02: Ledger, Transfers, Cash-in & Statements
+    application.add_api_route("/transactions/transfers", transaction_resource.on_post_transfer, methods=["POST"])
+    application.add_api_route("/transactions/cash-in", transaction_resource.on_post_cash_in, methods=["POST"])
+    application.add_api_route("/accounts/{account_key}/statement", transaction_resource.on_get_statement, methods=["GET"])
+
+    # RFC 04: Meios de Pagamento & Webhook HMAC
+    application.add_api_route("/accounts/{account_key}/charges", charge_resource.on_post_charge, methods=["POST"])
+    application.add_api_route("/charges/{charge_key}", charge_resource.on_get_charge, methods=["GET"])
+    application.add_api_route("/charges/reconciliation", charge_resource.on_post_reconciliation, methods=["POST"])
+    application.add_api_route("/webhooks/payments", charge_resource.on_post_webhook, methods=["POST"])
+
+    # RFC 05: Linhas de Crédito & Trava de Recebíveis
+    application.add_api_route("/credit/contracts", credit_resource.on_post_contract, methods=["POST"])
+    application.add_api_route("/credit/contracts/{contract_key}", credit_resource.on_get_contract, methods=["GET"])
+    application.add_api_route("/credit/anticipations", credit_resource.on_post_anticipation, methods=["POST"])
+
+    # RFC 06: Tesouraria & Fluxo Remunerado (CDB 100% CDI)
+    application.add_api_route("/treasury/accrue-yield", yield_resource.on_post_accrue, methods=["POST"])
+    application.add_api_route("/accounts/{account_key}/yield-position", yield_resource.on_get_position, methods=["GET"])
+
+    # RFC 07: Governança Patrimonial & Pockets (Caixinhas)
+    application.add_api_route("/accounts/{account_key}/pockets", pocket_resource.on_post_pocket, methods=["POST"])
+    application.add_api_route("/accounts/{account_key}/pockets", pocket_resource.on_get_pockets, methods=["GET"])
+    application.add_api_route("/accounts/{account_key}/pockets/{pocket_key}/deposit", pocket_resource.on_post_deposit, methods=["POST"])
+    application.add_api_route("/governance/transfer-policies", pocket_resource.on_post_transfer_policy, methods=["POST"])
+    application.add_api_route("/customers/{customer_key}/revenue-tracker", pocket_resource.on_get_revenue_tracker, methods=["GET"])
 
     register_error_handlers(application)
 
@@ -171,8 +108,6 @@ def create_app() -> FastAPI:
 
 
 def main() -> FastAPI:
-    # Não deixa a API subir com configuração faltando: é melhor falhar
-    # agora, na hora de ligar, do que na cara do cliente mais tarde.
     check_variables()
     error_verification()
     setup_logging()
