@@ -59,7 +59,7 @@ A solução estabelece o conceito central de **Customer (Cliente MEI)** com **On
 
 | Método | Caminho | O que faz | Entrada (campos que importam) | Saídas (status e quando) |
 |---|---|---|---|---|
-| `POST` | `/customers` | Onboarding unificado: cria o Cliente MEI e provisiona automaticamente as Contas PJ e PF vinculadas | `name`, `email`, `password`, `transaction_pin`, `cpf`, `cnpj`, `birthdate`, `legal_name` | `201` criado com `customer_key` e chaves das contas `business` e `personal`; `400` payload inválido ou PIN não numérico de 4 dígitos (`QIT000001`); `409` e-mail, CPF ou CNPJ duplicado (`QIT001004`/`05`/`06`); `422` CPF ou CNPJ inválido (`QIT001003`) |
+| `POST` | `/customers` | Submete cadastro unificado do MEI e inicia esteira de KYC/Antifraude (RFC 03) | `name`, `email`, `password`, `transaction_pin`, `cpf`, `cnpj`, `birthdate`, `legal_name` | `202` aceito com `customer_key` e status `created`; contas provisionadas automaticamente ao atingir status `active`; `400` payload inválido ou PIN não numérico (`QIT000001`); `409` duplicidade (`QIT001004`/`05`/`06`); `422` documento inválido (`QIT001003`) |
 | `POST` | `/customers/login` | Autentica o cliente e emite o token JWT de acesso | `email`, `password` | `200` autenticado com `access_token` e resumo das contas do cliente; `401` credenciais inválidas (`QIT000401`) |
 | `GET` | `/customers/{customer_key}` | Consulta os dados cadastrais do cliente MEI | `customer_key` no caminho | `200` dados do cliente (CPF, CNPJ, nome, e-mail); `404` cliente não encontrado (`QIT001001`) |
 | `GET` | `/customers/{customer_key}/accounts` | Lista as contas vinculadas ao cliente com saldos total, bloqueado e disponível | `customer_key` no caminho | `200` lista contendo a Conta PJ (`BUSINESS`) e a Conta PF (`PERSONAL`); `404` cliente não encontrado |
@@ -82,6 +82,7 @@ erDiagram
     CUSTOMER {
         int id PK "interno"
         char customer_key UK "UUIDv4 publico"
+        int status_id FK "referencia customer_status(id) conforme RFC 03 e ADR-0007"
         string cpf UK "CPF unico do empreendedor"
         string cnpj UK "CNPJ unico do MEI"
         string name "Nome civil completo"
@@ -90,7 +91,6 @@ erDiagram
         string password_hash "Hash Argon2id da senha"
         string pin_hash "Hash Argon2id do PIN de 4 digitos"
         date birthdate "Data de nascimento"
-        boolean is_active "Cliente ativo no sistema"
         datetime created_at
         datetime updated_at
     }

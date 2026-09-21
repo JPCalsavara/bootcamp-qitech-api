@@ -86,9 +86,13 @@ Baseado nos 9 blocos conceituais do framework do Business Model Canvas:
 * **Transparência e Previsibilidade:** Qualquer falha de negócio devolve código específico e mensagem clara orientando a correção, em vez de mensagens genéricas.
 
 ### 5. Fontes de Receita (Revenue Streams)
-* **Taxa por Operação:** Cobrança marginal por boleto ou liquidação financeira concluída com sucesso.
-* **Spread sobre Float Financeiro:** Rendimento da custódia dos recursos mantidos em conta corrente regulamentada.
-* **Serviços de Valor Agregado:** Relatórios fiscais pré-formatados para a Declaração Anual do MEI (DASN-SIMEI).
+* **Taxa Transacional de Liquidação:** Cobrança marginal atômica sobre recebimentos comerciais (PIX R$ 0,49 e Boleto Híbrido R$ 1,99 por liquidação concluída).
+* **MDR de Link de Pagamento (Cartão):** Taxa percentual sobre vendas no cartão de crédito à vista (2,99%) e parcelado (3,99%).
+* **Spread de Antecipação de Recebíveis:** Desconto pró-rata de 1,99% a 2,49% a.m. para antecipação imediata de vendas a prazo.
+* **Spread e Juros de Capital de Giro (CCB):** Juros remuneratórios de 2,89% a 4,50% a.m. em empréstimos parcelados com trava dinâmica de recebíveis via QI Tech SCD.
+* **Interchange Fee de Cartão PJ Débito:** Receita de 0,80% a 1,20% paga pelas adquirentes/bandeira sobre transações no cartão de débito corporativo.
+* **Float de Tesouraria:** Captura de rendimento de liquidez sobre saldos mantidos em custódia na `SettlementAccount` e depósitos livres de curto prazo (< 30 dias).
+* **Serviços de Valor Agregado:** Relatórios fiscais pré-formatados para a Declaração Anual do MEI (DASN-SIMEI) e DRE gerencial.
 
 ### 6. Recursos-Chave (Key Resources)
 * **Tecnologia & Infraestrutura:** PostgreSQL com propriedades ACID plenas, API assíncrona FastAPI, SQLAlchemy ORM e conteinerização Docker.
@@ -100,13 +104,13 @@ Baseado nos 9 blocos conceituais do framework do Business Model Canvas:
 * Conciliação contábil diária garantindo que a soma global de todos os saldos bate com os lançamentos de ledger.
 
 ### 8. Parcerias-Chave (Key Partners)
-* **Provedor de BaaS / Conectividade (QI Tech):** Infraestrutura regulatória, liquidação de boletos e acesso ao Sistema de Pagamentos Brasileiro (SPB).
-* **Bureaus de Validação Cadastral:** Consulta instantânea de regularidade de CPF/CNPJ.
-* **Plataformas de Gestão e ERPs:** Integrações diretas para automação do fluxo financeiro do cliente.
+* **Provedor de BaaS e SCD (QI Tech):** Infraestrutura regulatória, conectividade ao SPB/PIX, emissão de CCBs digitais e custódia de CDB/RDB de liquidez diária.
+* **Bureaus de Validação Cadastral e Antifraude (Serasa/Datavalid/DICT):** Consulta instantânea de regularidade de CPF/CNPJ, verificação de titulares do MEI e prevenção ao MED.
+* **Plataformas de Gestão e ERPs (Bling, ContaAzul):** Integrações diretas via API para automação do fluxo financeiro e conciliação do MEI.
 
 ### 9. Estrutura de Custos (Cost Structure)
 * **Custos Fixos:** Servidores de banco de dados relacional (RDS/PostgreSQL), instâncias de aplicação e ferramentas de monitoramento/log.
-* **Custos Variáveis:** Tarifas por consulta a bureaus cadastrais e taxas de liquidação interbancária por transação.
+* **Custos Variáveis:** Tarifas por consulta a bureaus cadastrais, taxas de liquidação interbancária por transação e custo de funding/risco de crédito.
 
 ---
 
@@ -125,6 +129,7 @@ Registros formais de decisões técnicas fundamentadas no material de engenharia
 │ ADR-0005 │ Desacoplamento de Identificadores com UUID Público (customer_key, etc.)  │ APROVADO  │
 │ ADR-0006 │ Idempotência Estrita em Tabela Dedicada e Catálogo Semântico de Erros    │ APROVADO  │
 │ ADR-0007 │ Estados como Tabela de Domínio e Histórico Append-Only (Anti-ENUM)         │ APROVADO  │
+│ ADR-0008 │ Tarifação Transacional com Débito Atômico no Ledger (Gross + Fee Debit)   │ APROVADO  │
 └──────────┴──────────────────────────────────────────────────────────────────────────┴───────────┘
 ```
 
@@ -183,3 +188,25 @@ Registros formais de decisões técnicas fundamentadas no material de engenharia
 
 * **Status:** Aprovado.
 * **Decisão:** Estados de contas e transações residem em tabelas de domínio (`account_status`, `transaction_status`). Mutações de estado gravam eventos na tabela de histórico append-only (`account_status_event`, `transaction_status_event`). A máquina de estados é governada centralizadamente no `Controller` com lock pessimista (`SELECT FOR UPDATE`).
+
+---
+
+### ADR-0008: Tarifação Transacional com Débito Atômico no Ledger (Gross + Fee Debit)
+*Consulte o arquivo individual completo em [docs/adr/0008-tarifacao-transacional-debito-atomico-ledger.md](file:///home/jpcalsavara/projetos/andamento/bootcamp-qitech-api/docs/adr/0008-tarifacao-transacional-debito-atomico-ledger.md).*
+
+* **Status:** Aprovado.
+* **Decisão:** Toda cobrança liquidada é creditada pelo valor bruto total na `BusinessAccount` e, no mesmo milissegundo em transação atômica do PostgreSQL com lock ordenado de Dijkstra, a tarifa da plataforma é debitada para a conta contábil de receita (`FeeRevenueAccount`). Garante que o extrato espelhe 1:1 a Nota Fiscal (NFS-e) do MEI e viabilize a comprovação fiscal do teto de R$ 81k.
+
+---
+
+## 5. Mapeamento da Suíte de RFCs Oficiais
+
+A arquitetura do CoreBank MEI está formalizada em 7 RFCs modulares em `docs/rfc/`:
+
+1. [**RFC 01 — Core Identity: Clientes (Customers) e Contas Vinculadas (PF e PJ)**](rfc/rfc-01-core-customer-accounts.md): Modelo de titularidade unificada, contas PJ/PF, autenticação JWT e PIN transacional de 4 dígitos.
+2. [**RFC 02 — Core Transactions: Motor Financeiro, Ledger de Partidas Dobradas e Idempotência**](rfc/rfc-02-transactions-ledger.md): Motor contábil imutável, ordenação de Dijkstra contra deadlocks, tabela dedicada de idempotência com TTL de 24h e extrato contábil enriquecido.
+3. [**RFC 03 — Onboarding Seguro, Antifraude, Validação Cadastral e Máquina de Estados do Customer**](rfc/rfc-03-onboarding-antifraude-estados.md): Validação de CPF/CNPJ na Receita Federal (QSA MEI), prevenção a fraudes no DICT (MED BACEN), consulta de Score Serasa e estados auditáveis via `customer_status`.
+4. [**RFC 04 — Meios de Pagamento, Liquidação e Tarifação Transacional**](rfc/rfc-04-meios-de-pagamento-liquidacao.md): PIX Cobrança (QR dinâmico), Boleto Híbrido, Link de Cartão, ingestão resiliente de webhooks (`webhook_event`) e débito atômico de tarifas.
+5. [**RFC 05 — Linhas de Crédito MEI: Antecipação de Recebíveis e Capital de Giro (CCB) com Trava Dinâmica**](rfc/rfc-05-linhas-credito-trava-recebiveis.md): Antecipação de vendas a prazo, CCB via QI Tech SCD, trava de recebíveis dinâmica com retenção em `Pocket` e garantia patrimonial cruzada PF/PJ.
+6. [**RFC 06 — Fluxo de Caixa Remunerado e Tesouraria Automatizada (CDB/RDB 100% CDI)**](rfc/rfc-06-fluxo-caixa-remunerado-cdb.md): Conta com remuneração automática a 100% do CDI, modelo híbrido (D+30 retroativo no saldo livre + D+1 imediato em Pockets) e resgate automático (*Cash Sweep*).
+7. [**RFC 07 — Gestão de Fluxo de Caixa, Separação Patrimonial e Envelopes MEI**](rfc/rfc-07-governanca-patrimonial-pockets.md): Envelopes de retenção programada (`Pocket`), política de teto de retirada para PF (`TransferPolicy`) e rastreador do teto de faturamento fiscal (`RevenueTracker`).

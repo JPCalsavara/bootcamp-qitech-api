@@ -96,7 +96,7 @@ erDiagram
         int origin_account_id FK "conta debito"
         int destination_account_id FK "conta credito"
         int status_id FK "estado atual"
-        string transaction_type "TRANSFER, PROFIT_DISTRIBUTION, DEPOSIT, REVERSAL"
+        string transaction_type "TRANSFER, PROFIT_DISTRIBUTION, DEPOSIT, REVERSAL, FEE_DEBIT, CREDIT_DISBURSEMENT, CREDIT_AMORTIZATION, RECEIVABLES_ANTICIPATION, TREASURY_YIELD, CHARGEBACK_DEBIT"
         bigint amount_cents "valor positivo em centavos (CHECK > 0)"
         string description "descricao da operacao"
         int reversal_of_transaction_id FK "referencia a transacao original em caso de estorno"
