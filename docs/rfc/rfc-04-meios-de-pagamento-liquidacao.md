@@ -58,11 +58,19 @@ A solução estabelece a esteira de cobranças comerciais com conciliação cont
 
 | Método | Caminho | O que faz | Entrada (campos que importam) | Saídas (status e quando) |
 |---|---|---|---|---|
-| `POST` | `/charges/pix` | Cria cobrança PIX com QR Code dinâmico | `account_key`, `amount_cents`, `description`, `expires_in_seconds`, `customer_document` | `201 Created` com `charge_key`, `txid`, `qr_code_payload` e `qr_code_image_url`; `400` valor inválido; `404` conta não encontrada |
-| `POST` | `/charges/boleto` | Emite boleto bancário híbrido (código de barras + QR Pix) | `account_key`, `amount_cents`, `due_date`, `payer_name`, `payer_document` | `201 Created` com `charge_key`, `digitable_line`, `barcode`, `pix_qr_code` e `pdf_url`; `400` data de vencimento inválida |
-| `POST` | `/charges/link` | Cria link de pagamento para cartão de crédito | `account_key`, `amount_cents`, `description`, `max_installments` | `201 Created` com `charge_key`, `checkout_url` e `status`; `400` parcelas inválidas |
-| `GET` | `/charges/{charge_key}` | Consulta detalhes e status da cobrança | `charge_key` no caminho | `200 OK` detalhes da cobrança, valor, método, status (`pending`, `settled`, `expired`, `cancelled`) e extrato |
-| `POST` | `/webhooks/settlement` | Ingestão assíncrona de eventos de liquidação de parceiros | Payload bruto do parceiro (JSON) e cabeçalho `X-Signature-SHA256` | `200 OK` evento registrado e agendado para liquidação contábil; `401` assinatura HMAC inválida |
+| `POST` | `/accounts/{account_key}/charges` | Cria cobrança comercial (PIX, Boleto ou Link) via `PaymentConnector` | `method` (`PIX`, `BOLETO`, `CREDIT_CARD_LINK`), `amount`, `due_date`, `customer_document` | `201 Created` com `charge_key`, dados de pagamento (`qr_code`, `barcode`, `payment_url`), valor bruto e líquido; `404` conta não encontrada |
+| `GET` | `/charges/{charge_key}` | Consulta detalhes e status da cobrança | `charge_key` no caminho | `200 OK` detalhes da cobrança, valor, método, status (`created`, `paid`, `expired`) |
+| `POST` | `/webhooks/payments` | Ingestão em tempo real de eventos de liquidação PIX (Push com HMAC SHA-256) | Payload do parceiro (`charge_key`, `amount`), cabeçalho `X-Signature-SHA256` | `200 OK` cobrança liquidada e creditada com tarifa atômica; `401` assinatura HMAC inválida; `404` cobrança não encontrada |
+| `POST` | `/charges/reconciliation` | Job de conciliação ativa periódica (Polling HTTP via `PaymentConnector`) | Opcional: lista de `charge_keys` a conciliar ou varredura de pendentes | `200 OK` resumo de cobranças liquidadas e reconciliadas |
+
+### Arquitetura de Conectores e Estratégia de Liquidação (Dual: Webhook vs Polling)
+1. **Geração Unificada (`PaymentConnector`)**:
+   - Toda emissão de cobrança é orquestrada pelo `PaymentConnector` (herdando de `RestConnector`), comunicando-se com as APIs de SPI/DICT (PIX), CIP/Nuclea (Boleto) e Adquirente (Cartão).
+2. **PIX (Fast-Path via Webhook Push)**:
+   - Devido ao SLA estrito do Banco Central e à necessidade de confirmação em balcão (~1,7 segundos), a liquidação de PIX aceita notificação instantânea via `POST /webhooks/payments`, autenticada por assinatura **HMAC SHA-256** e protegida por IP Whitelisting de borda.
+3. **Boletos e Reconciliação Geral (Polling Ativo de Saída)**:
+   - Para compensações em D+1 ou recuperação de eventuais falhas de rede, a API executa reconciliação ativa de saída (`POST /charges/reconciliation`), consultando o status no parceiro sem exigir portas abertas nem risco de picos incontroláveis de rede.
+
 
 ---
 

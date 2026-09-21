@@ -57,9 +57,14 @@ A solução redefine o fluxo de cadastro do `Customer` para um processo orientad
 | Método | Caminho | O que faz | Entrada (campos que importam) | Saídas (status e quando) |
 |---|---|---|---|---|
 | `POST` | `/customers` | Submete cadastro inicial do MEI e inicia esteira de KYC | `name`, `email`, `password`, `transaction_pin`, `cpf`, `cnpj`, `birthdate`, `legal_name`, `phone` | `202 Accepted` com `customer_key` e status `created`; `400` payload inválido ou PIN não numérico (`QIT000001`); `409` CPF/CNPJ/e-mail já existente; `422` formato de CPF/CNPJ inválido |
-| `GET` | `/customers/{customer_key}/onboarding-status` | Consulta o progresso das validações cadastrais e antifraude | `customer_key` no caminho | `200` com status atual (`created`, `kyc_pending`, `under_review`, `active`, `rejected`), checklist de validações e eventos |
-| `POST` | `/customers/{customer_key}/kyc-callback` | Webhook interno/parceiro para atualizar resultado de checagem cadastral/bureau | `customer_key`, `validation_type` (`RECEITA_FEDERAL`, `DICT_FRAUD`, `SERASA_SCORE`), `result` (`PASSED`, `FAILED`, `MANUAL`), `score`, `payload` | `200 OK` transição executada; `404` cliente não encontrado; `409` transição inválida |
-| `POST` | `/customers/{customer_key}/review` | Análise manual de compliance para clientes em `under_review` | `decision` (`APPROVE`, `REJECT`), `reason_code`, `notes` | `200 OK` status alterado para `active` ou `rejected`; `403` acesso não autorizado; `409` cliente não está em análise manual |
+| `GET` | `/customers/{customer_key}` | Consulta os dados cadastrais e status atual do cliente | `customer_key` no caminho | `200 OK` com status atual (`created`, `kyc_pending`, `under_review`, `active`, `rejected`), dados cadastrais |
+| `POST` | `/customers/{customer_key}/kyc/analysis` | Aciona a esteira de análise de risco e bureau via `KycConnector` | `score` (opcional), `risk_tier` (opcional), `cnd_federal_status` (opcional), `flags` (opcional) | `200 OK` transição de status executada (`active`, `under_review`, `rejected`); `404` cliente não encontrado |
+
+### Integração Externa via Conector HTTP (`KycConnector`)
+- A comunicação com Bureau de Crédito (Serasa/Boa Vista/BigDataCorp) e Antifraude é isolada em `KycConnector` (herdando de `RestConnector`).
+- Em ambiente de produção, o conector consome a API externa via HTTP de saída (`egress-only`), sem necessidade de portas abertas ou webhooks de parceiros para o cadastro básico.
+- Em ambientes `local` e `test` (com `MOCK_EXTERNAL_SERVICES=true` ou ausência de URL externa), o conector simula respostas determinísticas baseadas no documento do cliente, garantindo testes reproduzíveis e rápidos.
+
 
 ---
 

@@ -57,16 +57,20 @@ A solução estabelece o conceito central de **Customer (Cliente MEI)** com **On
 
 ### Rotas
 
+> [!NOTE]
+> **Autenticação em Microsserviço**: Conforme padrão de infraestrutura da QI Tech, a comunicação entre serviços na API de Core Banking é autenticada através do cabeçalho `INTERNAL-TOKEN`. A emissão de JWT para o usuário final (`POST /customers/login`) é gerenciada na camada de borda / BFF de autenticação.
+
 | Método | Caminho | O que faz | Entrada (campos que importam) | Saídas (status e quando) |
 |---|---|---|---|---|
-| `POST` | `/customers` | Submete cadastro unificado do MEI e inicia esteira de KYC/Antifraude (RFC 03) | `name`, `email`, `password`, `transaction_pin`, `cpf`, `cnpj`, `birthdate`, `legal_name` | `202` aceito com `customer_key` e status `created`; contas provisionadas automaticamente ao atingir status `active`; `400` payload inválido ou PIN não numérico (`QIT000001`); `409` duplicidade (`QIT001004`/`05`/`06`); `422` documento inválido (`QIT001003`) |
-| `POST` | `/customers/login` | Autentica o cliente e emite o token JWT de acesso | `email`, `password` | `200` autenticado com `access_token` e resumo das contas do cliente; `401` credenciais inválidas (`QIT000401`) |
+| `POST` | `/customers` | Submete cadastro unificado do MEI e inicia esteira de KYC/Antifraude (RFC 03) | `name`, `email`, `password`, `transaction_pin`, `cpf`, `cnpj`, `birthdate`, `legal_name` | `202` aceito com `customer_key` e status `created`; `400` payload inválido ou PIN não numérico (`QIT000001`); `409` duplicidade (`QIT001004`/`05`/`06`); `422` documento inválido (`QIT001003`) |
+| `POST` | `/customers/{customer_key}/accounts` | Provisiona as Contas Vinculadas (Conta PJ e Conta PF) após aprovação cadastral | `customer_key` no caminho | `201 Created` lista com as duas contas vinculadas provisionadas em status `active`; `404` cliente não encontrado |
 | `GET` | `/customers/{customer_key}` | Consulta os dados cadastrais do cliente MEI | `customer_key` no caminho | `200` dados do cliente (CPF, CNPJ, nome, e-mail); `404` cliente não encontrado (`QIT001001`) |
 | `GET` | `/customers/{customer_key}/accounts` | Lista as contas vinculadas ao cliente com saldos total, bloqueado e disponível | `customer_key` no caminho | `200` lista contendo a Conta PJ (`BUSINESS`) e a Conta PF (`PERSONAL`); `404` cliente não encontrado |
 | `GET` | `/accounts/{account_key}` | Consulta detalhes e saldos de uma conta específica | `account_key` no caminho | `200` detalhes da conta, tipo, status, `balance_cents`, `blocked_balance_cents` e `available_balance_cents`; `404` conta não encontrada |
-| `POST` | `/accounts/{account_key}/deposits` | Executa Cash-in (depósito/aporte de liquidez) com contrapartida em conta do sistema | `amount_cents`, `description`, cabeçalho `Idempotency-Key` | `201` liquidado com `deposit_key`; `400` valor <= 0; `404` conta não encontrada; `409` conta inativa ou fechada |
+| `GET` | `/accounts/{account_key}/balance` | Consulta saldo consolidado em tempo real da conta | `account_key` no caminho | `200` saldo em centavos e formatado em reais; `404` conta não encontrada |
+| `POST` | `/transactions/cash-in` | Executa Cash-in (depósito/aporte de liquidez) com contrapartida em conta do sistema | `account_key`, `amount`, `description`, cabeçalho `Idempotency-Key` | `201` liquidado com `transaction_key`; `400` valor <= 0; `404` conta não encontrada; `409` conta inativa ou fechada |
 | `PUT` | `/accounts/{account_key}/status` | Altera o estado da conta (ativar, bloquear, encerrar) com código de motivo formal | `status` (`active`, `blocked`, `closed`), `reason_code` (`VOLUNTARY`, `COMPLIANCE_FRAUD`, `IRREGULARITY_BCB518`, `JUDICIAL_BLOCK`), `reason` | `202` transição aceita com `account_key`; `400` status desconhecido; `404` conta não encontrada; `409` saldo > 0 em encerramento voluntário (`QIT001011`) ou transição a partir de status final (`QIT001002`) |
-| `PUT` | `/accounts/{account_key}/blocked-balance` | Aplica ou remove bloqueio cautelar de saldo (Resolução BCB nº 103/2021) | `amount_cents`, `operation` (`BLOCK` ou `UNBLOCK`), `reason` | `200` saldo bloqueado atualizado; `400` valor inválido; `422` saldo disponível insuficiente para bloqueio |
+| `PUT` | `/accounts/{account_key}/blocked-balance` | Aplica ou remove bloqueio cautelar de saldo (Resolução BCB nº 103/2021 - MED) | `amount_cents`, `operation` (`BLOCK` ou `UNBLOCK`), `reason` | `200` saldo bloqueado atualizado; `400` valor inválido; `422` saldo disponível insuficiente para bloqueio |
 
 ---
 

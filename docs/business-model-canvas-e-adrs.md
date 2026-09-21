@@ -86,7 +86,7 @@ Baseado nos 9 blocos conceituais do framework do Business Model Canvas:
 * **Transparência e Previsibilidade:** Qualquer falha de negócio devolve código específico e mensagem clara orientando a correção, em vez de mensagens genéricas.
 
 ### 5. Fontes de Receita (Revenue Streams)
-* **Taxa Transacional de Liquidação:** Cobrança marginal atômica sobre recebimentos comerciais (PIX R$ 0,49 e Boleto Híbrido R$ 1,99 por liquidação concluída).
+* **Taxa Transacional de Liquidação:** Cobrança atômica sobre recebimentos comerciais (PIX R$ 0,90 e Boleto R$ 2,50 por liquidação concluída, com débito no ledger conforme ADR-0008).
 * **MDR de Link de Pagamento (Cartão):** Taxa percentual sobre vendas no cartão de crédito à vista (2,99%) e parcelado (3,99%).
 * **Spread de Antecipação de Recebíveis:** Desconto pró-rata de 1,99% a 2,49% a.m. para antecipação imediata de vendas a prazo.
 * **Spread e Juros de Capital de Giro (CCB):** Juros remuneratórios de 2,89% a 4,50% a.m. em empréstimos parcelados com trava dinâmica de recebíveis via QI Tech SCD.

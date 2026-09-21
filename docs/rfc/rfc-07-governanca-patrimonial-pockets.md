@@ -2,10 +2,10 @@
 
 | | |
 |---|---|
-| **Status** | **Em Refinamento (Backlog)** |
+| **Status** | **Aprovada e Implementada** |
 | **Time** | João Pedro Calsavara |
-| **Data** | 19/09/2026 |
-| **Versão** | 2 (Uniformizada com o Modelo Canônico de Customer e Contas Vinculadas) |
+| **Data** | 21/09/2026 |
+| **Versão** | 3 (Uniformizada com o Modelo Canônico de Customer e Código em Produção) |
 
 ---
 
@@ -50,10 +50,11 @@ A solução expande o subsistema de Core Identity e Contas Vinculadas ([RFC 01](
 |---|---|---|---|---|
 | `POST` | `/accounts/{account_key}/pockets` | Cria um envelope de retenção na Conta PJ | `pocket_type` (`TAX_DAS`, `EMERGENCY`), `retention_percentage`, `target_amount_cents` | `201` criado; `400` percentual inválido; `404` conta não encontrada; `422` conta não é do tipo BUSINESS |
 | `GET` | `/accounts/{account_key}/pockets` | Lista os envelopes e valores alocados da conta | `account_key` | `200` lista de envelopes com saldo livre vs retido |
-| `POST` | `/accounts/{account_key}/transfer-policy` | Configura política de teto mensal de retirada para a PF | `destination_personal_account_key`, `monthly_draw_limit_cents` | `201` política configurada; `400` valor <= 0; `409` contas pertencem a titulares diferentes |
-| `GET` | `/accounts/{account_key}/transfer-policy` | Consulta o teto mensal, total já retirado e saldo disponível para saque | `account_key` | `200` status da política de retirada |
-| `POST` | `/transactions/draw-profit` | Executa transferência de pró-labore da PJ para PF respeitando o teto | `origin_account_key`, `amount_cents`, `transaction_pin`, `Idempotency-Key` | `201` transferido com sucesso; `409` **Teto excedido (`QIT002001`)**; `422` saldo insuficiente |
-| `GET` | `/customers/{customer_key}/revenue-status` | Consulta o acumulado anual de faturamento e proximidade do teto MEI | `customer_key` | `200` faturamento anual, percentual consumido do teto (R$ 81k) e alerta de conformidade |
+| `POST` | `/accounts/{account_key}/pockets/{pocket_key}/deposit` | Aloca manualmente valor no envelope | `amount` | `200 OK` saldo alocado no envelope atualizado |
+| `POST` | `/governance/transfer-policies` | Configura política de teto mensal de retirada para a PF | `origin_account_key`, `destination_account_key`, `monthly_limit_cents` | `201` política configurada; `400` valor <= 0; `409` contas pertencem a titulares diferentes |
+| `POST` | `/transactions/transfers` | Executa transferência de pró-labore da PJ para PF respeitando o teto | `origin_account_key`, `destination_account_key`, `amount`, `transaction_pin`, `Idempotency-Key` | `201` transferido com sucesso; `409` **Teto excedido (`QIT002001`)**; `422` saldo insuficiente |
+| `GET` | `/customers/{customer_key}/revenue-tracker` | Consulta o acumulado anual de faturamento e proximidade do teto MEI | `customer_key` | `200` faturamento anual, percentual consumido do teto (R$ 81k) e alerta de conformidade |
+
 
 ---
 

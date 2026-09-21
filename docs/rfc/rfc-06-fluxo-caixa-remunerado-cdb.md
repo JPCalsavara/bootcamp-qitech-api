@@ -56,9 +56,9 @@ A solução estabelece a **Conta Remunerada Automática com Liquidez Diária e C
 
 | Método | Caminho | O que faz | Entrada (campos que importam) | Saídas (status e quando) |
 |---|---|---|---|---|
-| `GET` | `/accounts/{account_key}/yield-summary` | Consulta extrato de rendimento acumulado, rentabilidade do mês e projeção | `account_key` no caminho | `200 OK` com saldo remunerado, rendimento bruto/líquido acumulado no mês, taxa CDI vigente e lote a liberar em 30 dias |
-| `GET` | `/accounts/{account_key}/yield-positions` | Lista os lotes de depósitos com suas datas de antiguidade e status de rendimento | `account_key` no caminho | `200 OK` com lista de lotes (`YieldPosition`), data de depósito, valor original, rendimento provisionado e alíquota de IOF/IR |
-| `POST` | `/admin/treasury/accrue-yields` | Job de fechamento diário que apura o CDI do dia útil e credita rendimentos no ledger | Cabeçalho `INTERNAL-TOKEN`, data de referência `target_date` | `200 OK` com total de contas processadas, montante creditado e contrapartida lançada na `TreasuryYieldAccount` |
+| `GET` | `/accounts/{account_key}/yield-position` | Consulta posição de rendimento acumulado, rentabilidade do lote e projeção | `account_key` no caminho | `200 OK` com saldo remunerado, rendimento bruto/líquido acumulado no mês e taxa CDI vigente |
+| `POST` | `/treasury/accrue-yield` | Job de fechamento diário que apura o CDI do dia útil e credita rendimentos no ledger | Cabeçalho `INTERNAL-TOKEN`, data de referência `target_date` | `200 OK` com total de contas processadas, montante creditado e contrapartida lançada na `TreasuryYieldAccount` |
+
 
 ---
 
