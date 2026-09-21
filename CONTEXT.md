@@ -63,3 +63,35 @@ _Avoid_: Saldo congelado, Trava de saldo
 Transferência interna de recursos da BusinessAccount para a PersonalAccount do mesmo Customer, classificada como lucro isento de IRPF conforme a Lei Complementar nº 123/2006.
 _Avoid_: Pró-labore, Retirada, Sangria de caixa
 
+**CustomerStatus**:
+Estado cadastral e de conformidade do Customer gerido por máquina de estados e tabela de domínio estrita.
+_Avoid_: UserStatus, EstadoCivil, ClientStatus
+
+**CustomerStatusEvent**:
+Registro imutável e auditável de cada mudança de estado cadastral do Customer, contendo motivação e metadados de bureaus.
+_Avoid_: StatusLog, CustomerHistory, LogCadastro
+
+**Charge**:
+Instrumento de cobrança comercial emitido pela BusinessAccount para recebimento de clientes via PIX dinâmico, Boleto Híbrido ou Link de Pagamento.
+_Avoid_: Invoice, Fatura, CobrancaExterna
+
+**FeeRevenueAccount**:
+Conta contábil interna do sistema bancário utilizada como contrapartida para apropriação de receitas de tarifas transacionais e spreads.
+_Avoid_: ContaLucro, ContaTaxas, CaixaFintech
+
+**CreditContract**:
+Contrato formal de crédito vinculado à BusinessAccount (Cédula de Crédito Bancário - CCB), detalhando parcelas, juros e taxa de retenção.
+_Avoid_: Emprestimo, Financiamento, Divida
+
+**AmortizationPocket**:
+Subconta ou envelope de retenção vinculado à BusinessAccount, alimentado por um percentual automático de cada venda para amortizar parcelas de crédito.
+_Avoid_: CofrinhoDivida, TravaCaixa, ReservaParcela
+
+**ReceivablesAnticipation**:
+Operação financeira de antecipação com desconto a valor presente de direitos creditórios futuros de vendas a prazo.
+_Avoid_: Adiantamento, SaqueFuturo, ResgateAntecipado
+
+**ChargebackClaim**:
+Registro de obrigação de ressarcimento decorrente de contestação ou estorno de venda cujo saldo disponível da BusinessAccount era insuficiente para absorver o débito.
+_Avoid_: SaldoNegativo, Rombo, DividaContestada
+
