@@ -34,3 +34,47 @@ CREATE TABLE sample_entity_status_event(
     event_datetime                  TIMESTAMP NOT NULL,
     created_at                      TIMESTAMP NOT NULL DEFAULT(NOW())
 );
+
+CREATE TABLE customer_status(
+    id                              SERIAL PRIMARY KEY,
+    enumerator                      VARCHAR(50) NOT NULL UNIQUE,
+    description                     VARCHAR(255) NOT NULL,
+    created_at                      TIMESTAMP NOT NULL DEFAULT(NOW())
+);
+
+INSERT INTO customer_status (enumerator, description) VALUES
+('created', 'Cadastro recebido, aguardando início de validações'),
+('kyc_pending', 'Validações cadastrais e antifraude em andamento'),
+('under_review', 'Cadastro sob análise manual de compliance'),
+('active', 'Cadastro aprovado e contas ativas'),
+('rejected', 'Cadastro recusado por fraude ou inconsistência grave'),
+('blocked', 'Cadastro bloqueado cautelarmente por conformidade')
+ON CONFLICT (enumerator) DO NOTHING;
+
+CREATE TABLE customer(
+    id                              SERIAL PRIMARY KEY,
+    customer_key                    CHAR(36) NOT NULL UNIQUE,
+    status_id                       INTEGER NOT NULL REFERENCES customer_status(id),
+    name                            VARCHAR(255) NOT NULL,
+    legal_name                      VARCHAR(255) NOT NULL,
+    email                           VARCHAR(255) NOT NULL UNIQUE,
+    cpf                             CHAR(14) NOT NULL UNIQUE,
+    cnpj                            CHAR(18) NOT NULL UNIQUE,
+    birthdate                       DATE NOT NULL,
+    phone                           VARCHAR(20) NOT NULL,
+    password_hash                   VARCHAR(255) NOT NULL,
+    pin_hash                        VARCHAR(255) NOT NULL,
+    created_at                      TIMESTAMP NOT NULL DEFAULT(NOW()),
+    updated_at                      TIMESTAMP NOT NULL DEFAULT(NOW())
+);
+
+CREATE TABLE customer_status_event(
+    id                              SERIAL PRIMARY KEY,
+    customer_id                     INTEGER NOT NULL REFERENCES customer(id),
+    from_status_id                  INTEGER REFERENCES customer_status(id),
+    to_status_id                    INTEGER NOT NULL REFERENCES customer_status(id),
+    reason_code                     VARCHAR(100) NOT NULL,
+    reason_detail                   JSONB,
+    event_datetime                  TIMESTAMP NOT NULL DEFAULT(NOW()),
+    created_at                      TIMESTAMP NOT NULL DEFAULT(NOW())
+);

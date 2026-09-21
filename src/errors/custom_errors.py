@@ -99,3 +99,25 @@ class InvalidBirthdate(QIException):
         description = f"The birthdate {birthdate} is not a real date."
         translation = "A data de nascimento informada não existe."
         super().__init__(title, self.code, http_status, description, translation)
+
+
+class InvalidCNPJ(QIException):
+    code = "QIT001008"
+
+    def __init__(self, cnpj) -> None:
+        title = "Invalid CNPJ"
+        http_status = 422
+        description = f"The document number {cnpj} is not a valid CNPJ."
+        translation = "O CNPJ informado não é válido."
+        super().__init__(title, self.code, http_status, description, translation)
+
+
+class DuplicatedCNPJ(QIException):
+    code = "QIT001009"
+
+    def __init__(self, cnpj) -> None:
+        title = "CNPJ already registered"
+        http_status = 409
+        description = f"There is already an entity with the CNPJ {cnpj}."
+        translation = "Já existe um cadastro com este CNPJ."
+        super().__init__(title, self.code, http_status, description, translation)

@@ -3,7 +3,7 @@ from os import path, environ
 
 root = Path(__file__).resolve().parents[1]
 
-if not environ.get("APP_ENV") or environ.get("APP_ENV") == "local":
+if not environ.get("APP_ENV") or environ.get("APP_ENV") in ("local", "development"):
     from dotenv import load_dotenv
 
     load_dotenv(path.join(str(root), ".env"))
