@@ -95,3 +95,15 @@ _Avoid_: Adiantamento, SaqueFuturo, ResgateAntecipado
 Registro de obrigação de ressarcimento decorrente de contestação ou estorno de venda cujo saldo disponível da BusinessAccount era insuficiente para absorver o débito.
 _Avoid_: SaldoNegativo, Rombo, DividaContestada
 
+**CashSweep**:
+Mecanismo automático e invisível de alocação de saldo ocioso da conta em títulos de renda fixa (CDB/RDB) com resgate instantâneo no momento de pagamentos ou transferências.
+_Avoid_: VarreduraManual, InvestimentoManual, ResgateManual
+
+**TreasuryYieldAccount**:
+Conta contábil interna do sistema bancário utilizada como contrapartida para liquidação de rendimentos de liquidez diária (100% CDI) pagos aos clientes.
+_Avoid_: ContaJuros, CaixaRendimento, ContaCDB
+
+**YieldPosition**:
+Registro de lote de saldo remunerado com carimbo de data/hora para controle de antiguidade, retenção de IOF, alíquota de IR e elegibilidade à regra de 30 dias.
+_Avoid_: Investimento, AplicacaoCDB, TituloCliente
+
