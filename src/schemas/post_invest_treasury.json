@@ -1,0 +1,11 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PostInvestTreasury",
+  "type": "object",
+  "properties": {
+    "account_key": { "type": "string" },
+    "amount": { "type": "integer", "minimum": 1 }
+  },
+  "required": ["account_key", "amount"],
+  "additionalProperties": false
+}

@@ -23,3 +23,13 @@ class YieldResource:
             content=jsonable_encoder(pos),
             status_code=http_status.HTTP_200_OK,
         )
+
+    @SchemaHandler.validate("post_invest_treasury.json")
+    def on_post_invest(self, payload: dict) -> JSONResponse:
+        controller = YieldController()
+        result = controller.invest(payload)
+        return JSONResponse(
+            content=jsonable_encoder(result),
+            status_code=http_status.HTTP_200_OK,
+        )
+

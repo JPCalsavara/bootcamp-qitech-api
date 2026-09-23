@@ -27,6 +27,24 @@ class YieldRepository:
             self.session.commit()
         return pos
 
+    def get_position_by_account_id(self, account_id: int) -> Optional[YieldPosition]:
+        return self.session.query(YieldPosition).filter(YieldPosition.account_id == account_id).first()
+
+    def add_to_position(self, account_id: int, amount: int) -> YieldPosition:
+        pos = self.get_or_create_position(account_id)
+        pos.principal_amount += amount
+        self.session.flush()
+        return pos
+
+    def redeem_from_position(self, account_id: int, amount: int) -> int:
+        pos = self.get_position_by_account_id(account_id)
+        if not pos or pos.principal_amount <= 0:
+            return 0
+        redeemed = min(pos.principal_amount, amount)
+        pos.principal_amount -= redeemed
+        self.session.flush()
+        return redeemed
+
     def accrue_daily_yield(
         self,
         account: Account,

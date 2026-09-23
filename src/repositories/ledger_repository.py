@@ -13,6 +13,7 @@ from models.ledger import (
     TransactionStatusEvent,
     TransactionType,
 )
+from models.yield_position import YieldPosition
 
 
 class LedgerRepository:
@@ -156,8 +157,38 @@ class LedgerRepository:
         dst = acc_first if acc_first.id == dest_account.id else acc_second
 
         blocked = getattr(src, "blocked_balance", 0) or 0
-        if (src.balance - blocked) < amount:
-            raise InsufficientFunds("Saldo disponível insuficiente para transferência")
+        available = src.balance - blocked
+        if available < amount:
+            deficit = amount - available
+            yield_pos = (
+                self.session.query(YieldPosition)
+                .filter(YieldPosition.account_id == src.id)
+                .with_for_update()
+                .first()
+            )
+            if yield_pos and yield_pos.principal_amount >= deficit:
+                # Cash Sweep automático e atômico de CDB (RFC 03)
+                yield_pos.principal_amount -= deficit
+                src.balance += deficit
+
+                sweep_tx = self.create_transaction(
+                    type_enum="TREASURY_YIELD",
+                    amount=deficit,
+                    destination_account_id=src.id,
+                    description="Resgate Automático Cash Sweep CDB",
+                )
+                self.create_ledger_entry(
+                    transaction_id=sweep_tx.id,
+                    account_id=src.id,
+                    entry_type="CREDIT",
+                    amount=deficit,
+                    balance_after=src.balance,
+                    description="Resgate Automático Cash Sweep CDB",
+                )
+                self.update_transaction_status(sweep_tx.id, "completed", "CASH_SWEEP_EXECUTED")
+            else:
+                raise InsufficientFunds("Saldo disponível insuficiente para transferência")
+
 
 
         tx = self.create_transaction(
