@@ -1,5 +1,14 @@
 # ADR-0008: Tarifação Transacional com Débito Atômico no Ledger (Gross + Fee Debit)
 
+| | |
+|---|---|
+| **Status** | **Aprovado** |
+| **Data** | 21/09/2026 |
+| **Decisores** | João Pedro Calsavara / Engenharia Core Banking |
+| **Tags** | `tarifacao`, `meios-de-pagamento`, `simples-nacional`, `partidas-dobradas` |
+
+---
+
 ## Contexto
 Gateways de pagamento e adquirentes convencionais costumam adotar a liquidação líquida direta (*Net Settlement*): ao liquidar uma venda de R$ 100,00 com tarifa de R$ 1,50, creditam diretamente R$ 98,50 na conta do cliente, registrando a taxa apenas como metadado ou desconto não escriturado.
 

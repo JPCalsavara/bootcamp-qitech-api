@@ -1,5 +1,14 @@
 # ADR-0006: Idempotência Estrita em Tabela Dedicada e Catálogo Semântico de Erros
 
+| | |
+|---|---|
+| **Status** | **Aprovado** |
+| **Data** | 19/09/2026 |
+| **Decisores** | João Pedro Calsavara / Engenharia Core Banking |
+| **Tags** | `idempotencia`, `resiliencia`, `catalogo-erros`, `ttl` |
+
+---
+
 ## Contexto
 Redes móveis e conexões de internet são inerentemente instáveis. Quando um cliente envia `POST /transactions` e a conexão cai antes de receber a resposta, o cliente tende a retentar. Sem idempotência, a conta sofrerá débito duplicado. Adicionalmente, retornar apenas status HTTP genéricos (como 400 seco) impede que sistemas automatizados tratem a falha programaticamente.
 

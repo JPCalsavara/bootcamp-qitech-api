@@ -1,5 +1,14 @@
 # ADR-0004: Arquitetura Contábil Imutável com Partidas Dobradas (Append-Only)
 
+| | |
+|---|---|
+| **Status** | **Aprovado** |
+| **Data** | 19/09/2026 |
+| **Decisores** | João Pedro Calsavara / Engenharia Core Banking |
+| **Tags** | `ledger`, `partidas-dobradas`, `append-only`, `contabilidade` |
+
+---
+
 ## Contexto
 Sistemas financeiros tradicionais costumam alterar o saldo da conta diretamente com `UPDATE account SET balance = ...`. Isso destrói o histórico de como o saldo foi construído e inviabiliza auditorias contábeis. A exclusão lógica (*soft delete* com flag `is_deleted`) é um antipadrão que viola restrições de unicidade e esconde mutações destrutivas.
 

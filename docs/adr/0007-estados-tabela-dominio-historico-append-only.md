@@ -1,5 +1,14 @@
 # ADR-0007: Estados como Tabela de Domínio e Histórico Append-Only (Anti-ENUM)
 
+| | |
+|---|---|
+| **Status** | **Aprovado** |
+| **Data** | 19/09/2026 |
+| **Decisores** | João Pedro Calsavara / Engenharia Core Banking |
+| **Tags** | `maquina-de-estados`, `anti-enum`, `tabela-dominio`, `auditoria` |
+
+---
+
 ## Contexto
 Entidades financeiras essenciais (como Contas e Transações) possuem ciclo de vida rigoroso (`created`, `active`, `blocked`, `closed` para Contas; `pending`, `settled`, `failed`, `reversed` para Transações). A modelagem com tipos `ENUM` nativos do PostgreSQL (`CREATE TYPE status AS ENUM`) ou colunas de texto livre (`VARCHAR`) introduz fragilidades graves:
 - Modificar ou adicionar valores a um `ENUM` nativo em produção exige comandos DDL com trava de tabela (`EXCLUSIVE LOCK`), inviabiliza reversões simples e impede acoplamento de metadados.

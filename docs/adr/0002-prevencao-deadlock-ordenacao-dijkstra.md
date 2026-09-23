@@ -1,5 +1,14 @@
 # ADR-0002: Prevenção de Deadlock Concorrente via Ordenação Global de Locks (Dijkstra)
 
+| | |
+|---|---|
+| **Status** | **Aprovado** |
+| **Data** | 19/09/2026 |
+| **Decisores** | João Pedro Calsavara / Engenharia Core Banking |
+| **Tags** | `concorrencia`, `deadlock`, `dijkstra`, `postgresql` |
+
+---
+
 ## Contexto
 Em transferências simultâneas entre contas cruzadas (ex: Alice transferindo para Bob e Bob transferindo para Alice no mesmo milissegundo), duas threads disputam locks de linha no PostgreSQL. Sem uma ordem pré-estabelecida, ocorre a clássica condição de Espera Circular (*Circular Wait*), gerando um Deadlock (`40P01`) e derrubando requisições com erro HTTP 500.
 

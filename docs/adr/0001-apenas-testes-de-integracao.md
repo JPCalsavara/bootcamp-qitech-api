@@ -1,5 +1,14 @@
 # ADR-0001: Adoção Exclusiva de Testes de Integração (Sem Testes Unitários Isolados)
 
+| | |
+|---|---|
+| **Status** | **Aprovado** |
+| **Data** | 19/09/2026 |
+| **Decisores** | João Pedro Calsavara / Engenharia Core Banking |
+| **Tags** | `testes`, `qualidade`, `postgresql`, `fastapi` |
+
+---
+
 ## Contexto
 Em sistemas de Core Banking e serviços financeiros com livros-razão (*ledger*) de partidas dobradas e controle de concorrência, a maior parte dos bugs críticos e incidentes decorre de:
 - Falhas de integridade referencial e constraints no banco de dados.
