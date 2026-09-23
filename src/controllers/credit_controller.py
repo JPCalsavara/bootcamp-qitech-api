@@ -1,3 +1,4 @@
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Optional
 
@@ -110,3 +111,94 @@ class CreditController(BaseController):
         )
 
         return ReceivablesAnticipationDTO.obj_to_dict(anticipation)
+
+    def execute_cross_guarantee(self, payload: dict) -> dict:
+        target_date_str = payload.get("target_date")
+        target_date = date.fromisoformat(target_date_str) if target_date_str else date.today()
+        contract_key = payload.get("contract_key")
+
+        cutoff_date = target_date - timedelta(days=5)
+
+        contracts = self.credit_repository.get_contracts_with_overdue_installments(
+            cutoff_date=cutoff_date, contract_key=contract_key
+        )
+
+        settled_count = 0
+        total_settled_amount = 0
+        details = []
+        processed_contract_keys = set()
+
+        for contract in contracts:
+            processed_contract_keys.add(contract.contract_key)
+            overdue_installments = [
+                inst
+                for inst in contract.installments
+                if inst.status in ["OPEN", "OVERDUE"] and inst.due_date <= cutoff_date
+            ]
+            overdue_installments.sort(key=lambda x: (x.due_date, x.installment_number))
+
+            pf_acc = contract.account_pf
+            pj_acc = contract.account_pj
+
+            for installment in overdue_installments:
+                needed = installment.amount - installment.paid_amount
+                self.context.db_session.refresh(pf_acc)
+                blocked = getattr(pf_acc, "blocked_balance", 0) or 0
+                available = pf_acc.balance - blocked
+
+                if available >= needed:
+                    self.ledger_repository.execute_transfer(
+                        source_account=pf_acc,
+                        dest_account=pj_acc,
+                        amount=needed,
+                        type_enum="CREDIT_AMORTIZATION",
+                        description=f"Compensação Garantia Cruzada MEI (CCB Art. 368 CC) Parc {installment.installment_number}",
+                    )
+                    installment.paid_amount += needed
+                    installment.status = "PAID"
+                    installment.paid_at = datetime.now()
+                    self.context.db_session.flush()
+
+                    settled_count += 1
+                    total_settled_amount += needed
+                    details.append(
+                        {
+                            "contract_key": contract.contract_key,
+                            "installment_key": installment.installment_key,
+                            "installment_number": installment.installment_number,
+                            "amount_settled": needed,
+                            "pf_account_key": pf_acc.account_key,
+                            "status": "SETTLED",
+                        }
+                    )
+                else:
+                    installment.status = "OVERDUE"
+                    self.credit_repository.update_contract_status(contract, "defaulted")
+                    self.context.db_session.flush()
+                    details.append(
+                        {
+                            "contract_key": contract.contract_key,
+                            "installment_key": installment.installment_key,
+                            "installment_number": installment.installment_number,
+                            "amount_settled": 0,
+                            "pf_account_key": pf_acc.account_key,
+                            "status": "INSUFFICIENT_FUNDS_OVERDUE",
+                        }
+                    )
+
+            if all(inst.status == "PAID" for inst in contract.installments):
+                self.credit_repository.update_contract_status(contract, "settled")
+            elif any(inst.status == "OVERDUE" for inst in contract.installments):
+                self.credit_repository.update_contract_status(contract, "defaulted")
+            else:
+                self.credit_repository.update_contract_status(contract, "active")
+
+        self.context.db_session.commit()
+
+        return {
+            "processed_contracts": len(processed_contract_keys),
+            "settled_installments": settled_count,
+            "total_settled_amount": total_settled_amount,
+            "details": details,
+        }
+

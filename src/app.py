@@ -90,9 +90,11 @@ def create_app() -> FastAPI:
     application.add_api_route("/credit/contracts", credit_resource.on_post_contract, methods=["POST"])
     application.add_api_route("/credit/contracts/{contract_key}", credit_resource.on_get_contract, methods=["GET"])
     application.add_api_route("/credit/anticipations", credit_resource.on_post_anticipation, methods=["POST"])
+    application.add_api_route("/credit/cross-guarantee/execute", credit_resource.on_post_cross_guarantee, methods=["POST"])
 
     # RFC 06: Tesouraria & Fluxo Remunerado (CDB 100% CDI)
     application.add_api_route("/treasury/accrue-yield", yield_resource.on_post_accrue, methods=["POST"])
+    application.add_api_route("/treasury/invest", yield_resource.on_post_invest, methods=["POST"])
     application.add_api_route("/accounts/{account_key}/yield-position", yield_resource.on_get_position, methods=["GET"])
 
     # RFC 07: Governança Patrimonial & Pockets (Caixinhas)

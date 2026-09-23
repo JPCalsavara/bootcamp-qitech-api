@@ -108,3 +108,25 @@ class CreditRepository:
         self.session.add(anticipation)
         self.session.commit()
         return anticipation
+
+    def get_contracts_with_overdue_installments(
+        self, cutoff_date: date, contract_key: Optional[str] = None
+    ) -> List[CreditContract]:
+        query = (
+            self.session.query(CreditContract)
+            .join(CreditInstallment)
+            .filter(
+                CreditInstallment.status.in_(["OPEN", "OVERDUE"]),
+                CreditInstallment.due_date <= cutoff_date,
+            )
+        )
+        if contract_key:
+            query = query.filter(CreditContract.contract_key == contract_key)
+        return query.distinct().all()
+
+    def update_contract_status(self, contract: CreditContract, status_enum: str) -> None:
+        status = self.get_status(status_enum)
+        if status:
+            contract.status_id = status.id
+            self.session.flush()
+

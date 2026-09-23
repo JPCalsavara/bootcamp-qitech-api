@@ -32,3 +32,13 @@ class CreditResource:
             content=jsonable_encoder(anticipation),
             status_code=http_status.HTTP_201_CREATED,
         )
+
+    @SchemaHandler.validate("post_cross_guarantee.json")
+    def on_post_cross_guarantee(self, payload: dict) -> JSONResponse:
+        controller = CreditController()
+        result = controller.execute_cross_guarantee(payload)
+        return JSONResponse(
+            content=jsonable_encoder(result),
+            status_code=http_status.HTTP_200_OK,
+        )
+
