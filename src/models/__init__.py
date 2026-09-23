@@ -24,6 +24,7 @@ from models.credit import (
     ReceivablesAnticipation,
 )
 from models.yield_position import YieldPosition, YieldAccrualEvent
+from models.webhook_nonce import WebhookNonce
 
 __all__ = [
     "Base",
@@ -60,4 +61,6 @@ __all__ = [
     "ReceivablesAnticipation",
     "YieldPosition",
     "YieldAccrualEvent",
+    "WebhookNonce",
 ]
+

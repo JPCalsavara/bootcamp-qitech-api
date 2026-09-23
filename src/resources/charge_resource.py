@@ -27,8 +27,15 @@ class ChargeResource:
 
     def on_post_webhook(self, payload: dict, request: Request) -> JSONResponse:
         signature = request.headers.get("X-Signature-SHA256") or request.headers.get("x-signature")
+        timestamp = request.headers.get("X-Webhook-Timestamp") or request.headers.get("x-webhook-timestamp")
+        nonce = request.headers.get("X-Webhook-Nonce") or request.headers.get("x-webhook-nonce")
         controller = ChargeController()
-        result = controller.process_webhook(payload, signature=signature)
+        result = controller.process_webhook(
+            payload,
+            signature=signature,
+            timestamp=timestamp,
+            nonce=nonce,
+        )
         return JSONResponse(
             content=jsonable_encoder(result),
             status_code=http_status.HTTP_200_OK,

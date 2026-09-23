@@ -356,6 +356,13 @@ CREATE TABLE webhook_event(
     created_at                      TIMESTAMP NOT NULL DEFAULT(NOW())
 );
 
+CREATE TABLE webhook_nonce(
+    id                              SERIAL PRIMARY KEY,
+    nonce                           VARCHAR(255) NOT NULL UNIQUE,
+    created_at                      TIMESTAMP NOT NULL DEFAULT(NOW())
+);
+
+
 CREATE TABLE chargeback_claim(
     id                              SERIAL PRIMARY KEY,
     claim_key                       CHAR(36) NOT NULL UNIQUE,

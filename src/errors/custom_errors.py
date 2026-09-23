@@ -245,4 +245,27 @@ class AccountStatusNotFound(QIException):
         super().__init__(title, self.code, http_status, description, translation)
 
 
+class ExpiredWebhookTimestamp(QIException):
+    code = "QIT002011"
+
+    def __init__(self, message="O timestamp do webhook expirou ou é inválido.") -> None:
+        title = "Expired Webhook Timestamp"
+        http_status = 401
+        description = message
+        translation = "A requisição de webhook expirou (janela máxima de 5 minutos)."
+        super().__init__(title, self.code, http_status, description, translation)
+
+
+class ReplayAttackDetected(QIException):
+    code = "QIT002012"
+
+    def __init__(self, message="Nonce duplicado detectado (potencial Replay Attack).") -> None:
+        title = "Replay Attack Detected"
+        http_status = 409
+        description = message
+        translation = "Identificador de requisição (nonce) já utilizado anteriormente."
+        super().__init__(title, self.code, http_status, description, translation)
+
+
+
 

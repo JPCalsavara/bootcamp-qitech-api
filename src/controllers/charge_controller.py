@@ -3,12 +3,20 @@ from decimal import Decimal
 import hashlib
 import hmac
 import json
+import os
+import time
 from typing import Optional
 
 from connectors.payment_connector import PaymentConnector
 from controllers.base_controller import BaseController
 from dtos.charge_dto import ChargeDTO
-from errors.custom_errors import InvalidSignature, NotFoundAccount, NotFoundCharge
+from errors.custom_errors import (
+    ExpiredWebhookTimestamp,
+    InvalidSignature,
+    NotFoundAccount,
+    NotFoundCharge,
+    ReplayAttackDetected,
+)
 from models.charge import Charge
 from repositories.account_repository import AccountRepository
 from repositories.charge_repository import ChargeRepository
@@ -18,7 +26,11 @@ from repositories.pocket_repository import PocketRepository
 
 
 class ChargeController(BaseController):
-    WEBHOOK_SECRET = "qitech_bootcamp_secret_2026"
+    WEBHOOK_SECRET_CURRENT = os.environ.get(
+        "WEBHOOK_SECRET_CURRENT", os.environ.get("WEBHOOK_SECRET", "qitech_bootcamp_secret_2026")
+    )
+    WEBHOOK_SECRET_PREVIOUS = os.environ.get("WEBHOOK_SECRET_PREVIOUS", "qitech_bootcamp_old_secret_2025")
+    WEBHOOK_SECRET = WEBHOOK_SECRET_CURRENT
 
     def __init__(self) -> None:
         super().__init__(__name__)
@@ -116,18 +128,49 @@ class ChargeController(BaseController):
             "retained_for_credit": retained_amount,
         }
 
-    def process_webhook(self, payload: dict, signature: Optional[str] = None) -> dict:
-        payload_bytes = json.dumps(payload, sort_keys=True).encode("utf-8")
-        expected_sig = hmac.new(self.WEBHOOK_SECRET.encode("utf-8"), payload_bytes, hashlib.sha256).hexdigest()
+    def process_webhook(
+        self,
+        payload: dict,
+        signature: Optional[str] = None,
+        timestamp: Optional[str] = None,
+        nonce: Optional[str] = None,
+    ) -> dict:
+        # 1. Proteção contra Replay Attack: Validação de Timestamp (janela de 5 min)
+        if timestamp:
+            try:
+                ts_val = float(timestamp)
+                now_val = time.time()
+                if abs(now_val - ts_val) > 300:
+                    raise ExpiredWebhookTimestamp()
+            except (ValueError, TypeError):
+                raise ExpiredWebhookTimestamp("Formato de timestamp inválido.")
 
-        # Se assinatura enviada, valida HMAC
-        if signature and signature != expected_sig:
-            raise InvalidSignature()
+        # 2. Proteção contra Replay Attack: Validação e Registro de Nonce Único
+        if nonce:
+            existing = self.charge_repository.get_nonce(nonce)
+            if existing:
+                raise ReplayAttackDetected()
+            self.charge_repository.save_nonce(nonce)
+
+        # 3. Validação de Assinatura com Suporte a Rotação Dual-Secret (Current e Previous)
+        payload_bytes = json.dumps(payload, sort_keys=True).encode("utf-8")
+        sig_current = hmac.new(self.WEBHOOK_SECRET_CURRENT.encode("utf-8"), payload_bytes, hashlib.sha256).hexdigest()
+        sig_prev = (
+            hmac.new(self.WEBHOOK_SECRET_PREVIOUS.encode("utf-8"), payload_bytes, hashlib.sha256).hexdigest()
+            if self.WEBHOOK_SECRET_PREVIOUS
+            else None
+        )
+
+        if signature:
+            matches_current = hmac.compare_digest(signature, sig_current)
+            matches_prev = sig_prev is not None and hmac.compare_digest(signature, sig_prev)
+            if not (matches_current or matches_prev):
+                raise InvalidSignature()
 
         event = self.charge_repository.create_webhook_event(
             event_type=payload.get("event", "payment.settled"),
             payload=payload,
-            signature=signature or expected_sig,
+            signature=signature or sig_current,
         )
 
         charge_key = payload.get("charge_key")

@@ -4,6 +4,7 @@ from uuid import uuid4
 
 from database import Context
 from models.charge import Charge, ChargeMethod, ChargeStatus, ChargebackClaim, WebhookEvent
+from models.webhook_nonce import WebhookNonce
 
 
 class ChargeRepository:
@@ -109,4 +110,15 @@ class ChargeRepository:
         if charge_keys:
             query = query.filter(Charge.charge_key.in_(charge_keys))
         return query.limit(limit).all()
+
+    def get_nonce(self, nonce: str) -> Optional[WebhookNonce]:
+        return self.session.query(WebhookNonce).filter(WebhookNonce.nonce == nonce).first()
+
+    def save_nonce(self, nonce: str) -> WebhookNonce:
+        item = WebhookNonce()
+        item.nonce = nonce
+        self.session.add(item)
+        self.session.commit()
+        return item
+
 

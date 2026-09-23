@@ -32,3 +32,4 @@ database/migrations/
 | `0003` | **Governança & Caixinhas**: `pocket` (DAS, emergência, trava), `transfer_policy` e `revenue_tracker` (teto R$ 81k). | RFC 03, RFC 04 |
 | `0004` | **Cobrança & Crédito CCB**: `charge` (Pix, boleto, cartão), `webhook_event`, `credit_contract`, parcelas e antecipação de recebíveis. | RFC 02, RFC 04, ADR-0008 |
 | `0005` | **Tesouraria & CDB**: `yield_position`, `yield_accrual_event` para remuneração diária CDI e Cash Sweep. | RFC 03 |
+| `0006` | **Segurança de Webhook**: `webhook_nonce` para proteção contra Replay Attacks e garantia de unicidade temporal. | Roadmap Segurança 1.2 |
