@@ -133,6 +133,9 @@ Registros formais de decisões técnicas fundamentadas no material de engenharia
 └──────────┴──────────────────────────────────────────────────────────────────────────┴───────────┘
 ```
 
+> [!TIP]
+> Para o índice executivo completo, mapa Mermaid de interdependência arquitetural e matriz de impacto no código, consulte [docs/adr/README.md](file:///home/jpcalsavara/projetos/andamento/bootcamp-qitech-api/docs/adr/README.md).
+
 ---
 
 ### ADR-0001: Adoção Exclusiva de Testes de Integração na Borda HTTP (Sem Mocks Unitários)
@@ -201,12 +204,9 @@ Registros formais de decisões técnicas fundamentadas no material de engenharia
 
 ## 5. Mapeamento da Suíte de RFCs Oficiais
 
-A arquitetura do CoreBank MEI está formalizada em 7 RFCs modulares em `docs/rfc/`:
+A arquitetura do CoreBank MEI está formalizada em 4 RFCs consolidadas por domínio arquitetural em `docs/rfc/` (com histórico preservado em `docs/rfc/archive/`):
 
-1. [**RFC 01 — Core Identity: Clientes (Customers) e Contas Vinculadas (PF e PJ)**](rfc/rfc-01-core-customer-accounts.md): Modelo de titularidade unificada, contas PJ/PF, autenticação JWT e PIN transacional de 4 dígitos.
-2. [**RFC 02 — Core Transactions: Motor Financeiro, Ledger de Partidas Dobradas e Idempotência**](rfc/rfc-02-transactions-ledger.md): Motor contábil imutável, ordenação de Dijkstra contra deadlocks, tabela dedicada de idempotência com TTL de 24h e extrato contábil enriquecido.
-3. [**RFC 03 — Onboarding Seguro, Antifraude, Validação Cadastral e Máquina de Estados do Customer**](rfc/rfc-03-onboarding-antifraude-estados.md): Validação de CPF/CNPJ na Receita Federal (QSA MEI), prevenção a fraudes no DICT (MED BACEN), consulta de Score Serasa e estados auditáveis via `customer_status`.
-4. [**RFC 04 — Meios de Pagamento, Liquidação e Tarifação Transacional**](rfc/rfc-04-meios-de-pagamento-liquidacao.md): PIX Cobrança (QR dinâmico), Boleto Híbrido, Link de Cartão, ingestão resiliente de webhooks (`webhook_event`) e débito atômico de tarifas.
-5. [**RFC 05 — Linhas de Crédito MEI: Antecipação de Recebíveis e Capital de Giro (CCB) com Trava Dinâmica**](rfc/rfc-05-linhas-credito-trava-recebiveis.md): Antecipação de vendas a prazo, CCB via QI Tech SCD, trava de recebíveis dinâmica com retenção em `Pocket` e garantia patrimonial cruzada PF/PJ.
-6. [**RFC 06 — Fluxo de Caixa Remunerado e Tesouraria Automatizada (CDB/RDB 100% CDI)**](rfc/rfc-06-fluxo-caixa-remunerado-cdb.md): Conta com remuneração automática a 100% do CDI, modelo híbrido (D+30 retroativo no saldo livre + D+1 imediato em Pockets) e resgate automático (*Cash Sweep*).
-7. [**RFC 07 — Gestão de Fluxo de Caixa, Separação Patrimonial e Envelopes MEI**](rfc/rfc-07-governanca-patrimonial-pockets.md): Envelopes de retenção programada (`Pocket`), política de teto de retirada para PF (`TransferPolicy`) e rastreador do teto de faturamento fiscal (`RevenueTracker`).
+1. [**RFC 01 — Onboarding Seguro, Identidade MEI e Provisionamento de Contas Vinculadas (PF/PJ)**](rfc/rfc-01-onboarding-identidade-contas.md): Modelo de titularidade unificada, esteira assíncrona de KYC/Antifraude (Receita Federal, DICT/MED, Bureau Serasa), máquina de estados auditável do `Customer`, contas vinculadas (`BUSINESS` e `PERSONAL`), credenciais Argon2id (senha e PIN) e controle de saldo cautelar.
+2. [**RFC 02 — Motor Financeiro, Ledger de Partidas Dobradas, Meios de Pagamento e Liquidação Transacional**](rfc/rfc-02-ledger-meios-pagamento-liquidacao.md): Motor contábil imutável de partidas dobradas, ordenação determinística de Dijkstra contra deadlocks, idempotência com tabela dedicada (TTL 24h), cobranças multimodais (PIX QR dinâmico, Boleto Híbrido, Link de Cartão), webhooks e débito atômico de tarifas transacionais.
+3. [**RFC 03 — Governança Patrimonial, Envelopes Financeiros (Pockets) e Tesouraria Remunerada (CDB/RDB)**](rfc/rfc-03-governanca-caixa-envelopes-tesouraria.md): Separação patrimonial via teto de pró-labore (`TransferPolicy`), envelopes de retenção tributária e reservas (`Pocket`), rastreador em tempo real do teto de faturamento fiscal de R$ 81k (`RevenueTracker`), e tesouraria remunerada (100% CDI) com *Cash Sweep* invisível no débito.
+4. [**RFC 04 — Linhas de Crédito MEI, Cédula de Crédito Bancário (CCB) e Antecipação com Trava Dinâmica**](rfc/rfc-04-linhas-credito-trava-recebiveis.md): Antecipação de recebíveis de vendas futuras, Cédula de Crédito Bancário (CCB) de Capital de Giro via QI Tech SCD, trava dinâmica de recebíveis com retenção automática em `Pocket` de amortização e garantia patrimonial cruzada PF/PJ.
