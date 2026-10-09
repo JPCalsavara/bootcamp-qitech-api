@@ -16,7 +16,7 @@ class TestE2EComplianceFraudAndClosure:
         cpf = RandomGenerator.generate_cpf()
         random_suffix = f"{random.randint(10000, 99999)}"
         email = f"compliance_{random_suffix}@exemplo.com.br"
-        cnpj = f"12.345.678/{random.randint(1000, 9999)}-90"
+        cnpj = RandomGenerator.generate_cnpj()
 
         payload = {
             "name": name,

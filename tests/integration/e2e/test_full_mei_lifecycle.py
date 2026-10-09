@@ -48,7 +48,7 @@ class TestFullMeiLifecycle:
         cpf = RandomGenerator.generate_cpf()
         random_suffix = f"{random.randint(10000, 99999)}"
         email = f"mei_{random_suffix}@exemplo.com.br"
-        cnpj = f"12.345.678/{random.randint(1000, 9999)}-90"
+        cnpj = RandomGenerator.generate_cnpj()
 
         customer_payload = {
             "name": "Maria MEI Empreendedora",

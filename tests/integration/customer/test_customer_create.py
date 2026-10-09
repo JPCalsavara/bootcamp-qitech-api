@@ -14,8 +14,7 @@ class TestCustomerCreate:
         cpf = RandomGenerator.generate_cpf()
         random_suffix = str(uuid.uuid4())[:8]
         email = f"maria.{random_suffix}@exemplo.com.br"
-        random_digits = f"{random.randint(1000, 9999)}"
-        cnpj = f"12.345.678/{random_digits}-90"
+        cnpj = RandomGenerator.generate_cnpj()
 
         payload = {
             "name": "Maria da Silva",
