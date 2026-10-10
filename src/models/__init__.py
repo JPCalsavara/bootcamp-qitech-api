@@ -1,7 +1,4 @@
 from models.base import Base
-from models.sample_entity_status import SampleEntityStatus
-from models.sample_entity import SampleEntity
-from models.sample_entity_status_event import SampleEntityStatusEvent
 from models.customer_status import CustomerStatus
 from models.customer import Customer
 from models.customer_status_event import CustomerStatusEvent
@@ -28,9 +25,6 @@ from models.webhook_nonce import WebhookNonce
 
 __all__ = [
     "Base",
-    "SampleEntity",
-    "SampleEntityStatus",
-    "SampleEntityStatusEvent",
     "Customer",
     "CustomerStatus",
     "CustomerStatusEvent",

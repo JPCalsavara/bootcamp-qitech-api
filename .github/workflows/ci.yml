@@ -1,0 +1,76 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  lint-and-test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: bootcamp
+          POSTGRES_PASSWORD: bootcamp
+          POSTGRES_DB: bootcamp
+        ports:
+          - 5435:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Linter (flake8)
+        run: |
+          flake8 src/ tests/
+
+      - name: Integration Tests (pytest)
+        env:
+          DATABASE_URL: postgresql://bootcamp:bootcamp@localhost:5435/bootcamp
+          INTERNAL_TOKEN: default_token
+        run: |
+          # The database schema needs to be created before tests run.
+          # Here we assume pytest or app initialization creates the schema,
+          # or we run the database migrations.
+          # We can load the SQL schema directly into postgres.
+          PGPASSWORD=bootcamp psql -h localhost -p 5435 -U bootcamp -d bootcamp -f database/database.sql
+          pytest tests/integration/ -v
+
+  ai-review:
+    name: AI Gatekeeper Code Review
+    runs-on: ubuntu-latest
+    needs: [lint-and-test]
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: AI Gatekeeper Review
+        uses: JPCalsavara/ai-gatekeeper@main
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}

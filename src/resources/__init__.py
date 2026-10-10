@@ -1,5 +1,4 @@
 from resources.health_check import HealthCheckResource
-from resources.sample_entity import SampleEntityResource
 from resources.customer_resource import CustomerResource
 from resources.account_resource import AccountResource
 from resources.transaction_resource import TransactionResource
@@ -11,7 +10,6 @@ from resources.pocket_resource import PocketResource
 
 __all__ = [
     "HealthCheckResource",
-    "SampleEntityResource",
     "CustomerResource",
     "AccountResource",
     "TransactionResource",
