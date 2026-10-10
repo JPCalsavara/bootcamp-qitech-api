@@ -1,4 +1,3 @@
-from datetime import date
 import random
 from tests.utils import ClientRequisition, RandomGenerator
 from tests.utils.request_generator import INTERNAL_TOKEN
@@ -35,7 +34,6 @@ class TestAccountStatus:
         )
         assert resp_customer.response_status == 202, f"POST /customers failed: {resp_customer.response_json}"
         customer_key = resp_customer.response_json["customer_key"]
-
 
         resp_accounts = ClientRequisition.send(
             "POST",
@@ -235,4 +233,3 @@ class TestAccountStatus:
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
         assert resp_tx_ok.response_status == 200
-

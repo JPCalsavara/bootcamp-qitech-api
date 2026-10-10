@@ -224,4 +224,3 @@ class TestChargesWebhook:
         # Saldo permanece inalterado
         resp_bal2 = ClientRequisition.send("GET", f"/accounts/{pj_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_bal2.response_json["balance"] == 29750
-

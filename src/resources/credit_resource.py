@@ -41,4 +41,3 @@ class CreditResource:
             content=jsonable_encoder(result),
             status_code=http_status.HTTP_200_OK,
         )
-

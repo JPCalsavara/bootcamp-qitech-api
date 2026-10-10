@@ -221,4 +221,5 @@ class TestE2ECrossPatrimonyAndSweep:
 
         # Extrato PF registra a liquidação de garantia cruzada
         resp_pf_stmt = ClientRequisition.send("GET", f"/accounts/{pf_key}/statement", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
-        assert any(e["entry_type"] == "DEBIT" and e["amount"] == inst_amount and "Garantia Cruzada" in e["description"] for e in resp_pf_stmt.response_json)
+        assert any(e["entry_type"] == "DEBIT" and e["amount"] == inst_amount and "Garantia Cruzada" in e["description"]
+                   for e in resp_pf_stmt.response_json)

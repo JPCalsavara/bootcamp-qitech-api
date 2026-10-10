@@ -33,7 +33,6 @@ def create_app() -> FastAPI:
         openapi_url="/openapi.json",
     )
 
-
     register_session_manager_middleware(application)
     register_internal_token_middleware(application)
     register_request_logger_middleware(application)
@@ -52,7 +51,6 @@ def create_app() -> FastAPI:
     # Health check
     application.add_api_route("/", health_check_resource.on_get_home, methods=["GET"])
     application.add_api_route("/health_check", health_check_resource.on_get_health_check, methods=["GET"])
-
 
     # RFC 01 & RFC 03: Customer & Onboarding
     application.add_api_route("/customers", customer_resource.on_post, methods=["POST"])

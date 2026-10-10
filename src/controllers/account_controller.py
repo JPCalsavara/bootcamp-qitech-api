@@ -4,7 +4,6 @@ from dtos.account_dto import AccountDTO
 from errors.custom_errors import (
     AccountClosePositiveBalance,
     AccountStatusNotFound,
-    CustomerNotActive,
     InsufficientFunds,
     InvalidOperation,
     NotFoundAccount,
@@ -73,7 +72,6 @@ class AccountController(BaseController):
         if account.status.enumerator == "closed":
             raise SampleEntityFinalStatus(account.status.enumerator, to_status_enum)
 
-
         # 2. Se está tentando encerrar ('closed'):
         if to_status_enum == "closed":
             # Exceção para compliance / fraude (Resolução BCB 518/2025)
@@ -121,4 +119,3 @@ class AccountController(BaseController):
             "blocked_balance": updated_account.blocked_balance,
             "available_balance": updated_account.balance - updated_account.blocked_balance,
         }
-

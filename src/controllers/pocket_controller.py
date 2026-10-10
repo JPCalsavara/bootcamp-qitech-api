@@ -86,4 +86,3 @@ class PocketController(BaseController):
         account.balance -= amount
         pocket = self.pocket_repository.update_pocket_balance(pocket.id, amount)
         return PocketDTO.obj_to_dict(pocket)
-

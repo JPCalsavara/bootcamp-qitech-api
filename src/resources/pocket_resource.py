@@ -48,4 +48,3 @@ class PocketResource:
             content=jsonable_encoder(pocket),
             status_code=http_status.HTTP_200_OK,
         )
-

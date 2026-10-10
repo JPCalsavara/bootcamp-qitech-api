@@ -54,7 +54,6 @@ class LedgerRepository:
         self.session.commit()
         return record
 
-
     def create_transaction(
         self,
         type_enum: str,
@@ -188,8 +187,6 @@ class LedgerRepository:
                 self.update_transaction_status(sweep_tx.id, "completed", "CASH_SWEEP_EXECUTED")
             else:
                 raise InsufficientFunds("Saldo disponível insuficiente para transferência")
-
-
 
         tx = self.create_transaction(
             type_enum=type_enum,

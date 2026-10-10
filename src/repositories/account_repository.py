@@ -93,4 +93,3 @@ class AccountRepository:
         account.blocked_balance = new_blocked_balance
         self.session.commit()
         return account
-

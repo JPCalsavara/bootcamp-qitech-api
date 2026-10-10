@@ -123,4 +123,3 @@ class TestKycOnboarding:
         assert "score" in data and data["score"] > 0
         assert data["customer_status"] in ("active", "under_review", "rejected")
         assert "risk_tier" in data
-
