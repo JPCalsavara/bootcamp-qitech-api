@@ -11,7 +11,7 @@ class TestCrossGuarantee:
         cpf = RandomGenerator.generate_cpf()
         random_digits = f"{random.randint(1000, 9999)}"
         email = f"cross.{random_digits}@exemplo.com.br"
-        cnpj = f"12.345.678/{random_digits}-90"
+        cnpj = RandomGenerator.generate_cnpj()
 
         payload = {
             "name": "Cliente Garantia Cruzada",
