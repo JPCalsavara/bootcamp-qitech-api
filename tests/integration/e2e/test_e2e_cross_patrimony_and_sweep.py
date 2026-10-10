@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 import random
 from tests.utils import ClientRequisition, RandomGenerator
-from tests.utils.request_generator import INTERNAL_TOKEN
+from tests.utils import INTERNAL_TOKEN
 
 
 class TestE2ECrossPatrimonyAndSweep:

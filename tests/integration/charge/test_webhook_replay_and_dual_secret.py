@@ -7,7 +7,7 @@ import time
 from uuid import uuid4
 
 from tests.utils import ClientRequisition, RandomGenerator
-from tests.utils.request_generator import INTERNAL_TOKEN
+from tests.utils import INTERNAL_TOKEN
 
 
 class TestWebhookReplayAndDualSecret:
