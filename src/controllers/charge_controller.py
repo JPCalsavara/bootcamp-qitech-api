@@ -1,5 +1,4 @@
 from datetime import date, datetime
-from decimal import Decimal
 import hashlib
 import hmac
 import json
@@ -211,4 +210,3 @@ class ChargeController(BaseController):
             "settled_amount": settled_amount,
             "charges": reconciled,
         }
-

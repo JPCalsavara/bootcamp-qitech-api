@@ -1,7 +1,7 @@
 import random
 import uuid
 from tests.utils import ClientRequisition, RandomGenerator
-from tests.utils.request_generator import INTERNAL_TOKEN
+from tests.utils import INTERNAL_TOKEN
 
 
 class TestTransfers:

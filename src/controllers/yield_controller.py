@@ -84,4 +84,3 @@ class YieldController(BaseController):
         self.context.db_session.commit()
 
         return YieldPositionDTO.obj_to_dict(pos)
-

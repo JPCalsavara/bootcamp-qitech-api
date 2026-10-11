@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 from uuid import uuid4
 
 from database import Context
@@ -129,4 +129,3 @@ class CreditRepository:
         if status:
             contract.status_id = status.id
             self.session.flush()
-

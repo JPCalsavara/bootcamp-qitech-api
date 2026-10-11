@@ -222,7 +222,6 @@ class PolicyViolation(QIException):
         super().__init__(title, self.code, http_status, description, translation)
 
 
-
 class AccountClosePositiveBalance(QIException):
     code = "QIT001011"
 
@@ -265,7 +264,3 @@ class ReplayAttackDetected(QIException):
         description = message
         translation = "Identificador de requisição (nonce) já utilizado anteriormente."
         super().__init__(title, self.code, http_status, description, translation)
-
-
-
-

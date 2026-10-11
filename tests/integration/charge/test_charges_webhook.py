@@ -4,7 +4,7 @@ import hmac
 import json
 import random
 from tests.utils import ClientRequisition, RandomGenerator
-from tests.utils.request_generator import INTERNAL_TOKEN
+from tests.utils import INTERNAL_TOKEN
 
 
 class TestChargesWebhook:
@@ -224,4 +224,3 @@ class TestChargesWebhook:
         # Saldo permanece inalterado
         resp_bal2 = ClientRequisition.send("GET", f"/accounts/{pj_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_bal2.response_json["balance"] == 29750
-

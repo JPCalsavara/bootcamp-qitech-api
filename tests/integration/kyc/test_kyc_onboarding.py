@@ -1,6 +1,6 @@
 import random
 from tests.utils import ClientRequisition, RandomGenerator
-from tests.utils.request_generator import INTERNAL_TOKEN
+from tests.utils import INTERNAL_TOKEN
 
 
 class TestKycOnboarding:
@@ -123,4 +123,3 @@ class TestKycOnboarding:
         assert "score" in data and data["score"] > 0
         assert data["customer_status"] in ("active", "under_review", "rejected")
         assert "risk_tier" in data
-

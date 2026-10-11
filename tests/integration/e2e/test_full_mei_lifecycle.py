@@ -3,10 +3,10 @@ import hmac
 import json
 import random
 from datetime import date, timedelta
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Optional, Tuple
 
 from tests.utils import ClientRequisition, RandomGenerator
-from tests.utils.request_generator import INTERNAL_TOKEN
+from tests.utils import INTERNAL_TOKEN
 
 
 def post(endpoint: str, payload: Optional[dict] = None, headers: Optional[dict] = None) -> Tuple[int, Any]:

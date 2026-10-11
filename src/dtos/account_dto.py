@@ -16,4 +16,3 @@ class AccountDTO:
             "available_balance": account.balance - blocked,
             "created_at": account.created_at.isoformat() if account.created_at else None,
         }
-

@@ -1,4 +1,4 @@
-from models.credit import CreditContract, CreditInstallment, ReceivablesAnticipation
+from models.credit import CreditContract, ReceivablesAnticipation
 
 
 class CreditContractDTO:

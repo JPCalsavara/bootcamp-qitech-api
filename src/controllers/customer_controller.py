@@ -9,6 +9,7 @@ from errors import (
     DuplicatedEmail,
     InvalidBirthdate,
     InvalidDocumentNumber,
+    NotFoundCustomer,
 )
 from repositories.customer_repository import CustomerRepository
 from utils.document_number import is_valid_cpf
@@ -30,7 +31,7 @@ class CustomerController(BaseController):
         birthdate_str = customer_data["birthdate"]
 
         try:
-            birthdate = date.fromisoformat(birthdate_str)
+            date.fromisoformat(birthdate_str)
         except ValueError:
             raise InvalidBirthdate(birthdate_str)
 
@@ -63,4 +64,3 @@ class CustomerController(BaseController):
         if not customer:
             raise NotFoundCustomer(customer_key)
         return CustomerDTO.obj_to_dict(customer)
-

@@ -1,6 +1,5 @@
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from typing import Optional
 
 from controllers.base_controller import BaseController
 from dtos.credit_dto import CreditContractDTO, ReceivablesAnticipationDTO
@@ -201,4 +200,3 @@ class CreditController(BaseController):
             "total_settled_amount": total_settled_amount,
             "details": details,
         }
-

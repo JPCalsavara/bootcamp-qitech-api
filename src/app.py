@@ -17,7 +17,6 @@ from resources import (
     HealthCheckResource,
     KycResource,
     PocketResource,
-    SampleEntityResource,
     TransactionResource,
     YieldResource,
 )
@@ -34,14 +33,12 @@ def create_app() -> FastAPI:
         openapi_url="/openapi.json",
     )
 
-
     register_session_manager_middleware(application)
     register_internal_token_middleware(application)
     register_request_logger_middleware(application)
     register_request_context_middleware(application)
 
     health_check_resource = HealthCheckResource()
-    sample_entity_resource = SampleEntityResource()
     customer_resource = CustomerResource()
     account_resource = AccountResource()
     transaction_resource = TransactionResource()
@@ -54,13 +51,6 @@ def create_app() -> FastAPI:
     # Health check
     application.add_api_route("/", health_check_resource.on_get_home, methods=["GET"])
     application.add_api_route("/health_check", health_check_resource.on_get_health_check, methods=["GET"])
-
-    # Sample Entity
-    application.add_api_route("/sample_entity", sample_entity_resource.on_post, methods=["POST"])
-    application.add_api_route("/sample_entity/{sample_entity_key}", sample_entity_resource.on_get_by_key, methods=["GET"])
-    application.add_api_route("/sample_entity/{sample_entity_key}", sample_entity_resource.on_put_by_key, methods=["PUT"])
-    application.add_api_route("/webhook/sample_entity/{sample_entity_key}/increment_counter", sample_entity_resource.on_put_increment_counter, methods=["PUT"])
-    application.add_api_route("/sample_entities", sample_entity_resource.on_get_list, methods=["GET"])
 
     # RFC 01 & RFC 03: Customer & Onboarding
     application.add_api_route("/customers", customer_resource.on_post, methods=["POST"])

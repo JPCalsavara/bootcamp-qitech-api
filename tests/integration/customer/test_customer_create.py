@@ -1,13 +1,12 @@
-import random
 import uuid
 from tests.utils import ClientRequisition, RandomGenerator
-from tests.utils.request_generator import INTERNAL_TOKEN
+from tests.utils import INTERNAL_TOKEN
 
 
 class TestCustomerCreate:
     def test_creates_customer_with_status_created_returns_202(self):
         """RFC 03 / ADR-0007: Onboarding Seguro inicia com status 'created' e responde 202 Accepted.
-        
+
         O endpoint POST /customers recebe os dados unificados do MEI e do titular,
         valida o payload e insere o cliente com status inicial 'created'.
         """
