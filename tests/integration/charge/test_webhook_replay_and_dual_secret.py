@@ -18,7 +18,7 @@ class TestWebhookReplayAndDualSecret:
 
     def _setup_pj_account_and_charge(self, amount: int = 15000) -> tuple[str, str]:
         cpf = RandomGenerator.generate_cpf()
-        random_digits = f"{random.randint(1000, 9999)}"
+        random_digits = uuid4().hex[:10]
         email = f"sec.{random_digits}@exemplo.com.br"
         cnpj = RandomGenerator.generate_cnpj()
 
