@@ -45,12 +45,16 @@ jobs:
         env:
           DATABASE_URL: postgresql://bootcamp:bootcamp@localhost:5435/bootcamp
           INTERNAL_TOKEN: default_token
+          API_PORT: 3000
+          SERVER_LOCALHOST: 127.0.0.1
         run: |
-          # The database schema needs to be created before tests run.
-          # Here we assume pytest or app initialization creates the schema,
-          # or we run the database migrations.
-          # We can load the SQL schema directly into postgres.
+          # Load database schema
           PGPASSWORD=bootcamp psql -h localhost -p 5435 -U bootcamp -d bootcamp -f database/database.sql
+          # Start API server in background
+          uvicorn app:app --app-dir src --host 0.0.0.0 --port 3000 &
+          # Wait for API server to be ready
+          timeout 30 bash -c 'until curl -s http://127.0.0.1:3000/health_check; do sleep 1; done'
+          # Run integration tests
           pytest tests/integration/ -v
 
   ai-review:
