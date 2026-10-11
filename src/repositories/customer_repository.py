@@ -55,6 +55,6 @@ class CustomerRepository:
         initial_event.event_datetime = datetime.now()
 
         self.session.add(initial_event)
-        self.session.commit()
+        self.session.flush()
 
         return customer

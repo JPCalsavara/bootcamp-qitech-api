@@ -9,9 +9,10 @@ from utils.schema_handler import SchemaHandler
 
 class ChargeResource:
     @SchemaHandler.validate("post_charge.json")
-    def on_post_charge(self, account_key: str, payload: dict) -> JSONResponse:
+    def on_post_charge(self, account_key: str, payload: dict, request: Request) -> JSONResponse:
+        idempotency_key = request.headers.get("Idempotency-Key") or request.headers.get("idempotency-key")
         controller = ChargeController()
-        charge = controller.create_charge(account_key, payload)
+        charge = controller.create_charge(account_key, payload, idempotency_key=idempotency_key)
         return JSONResponse(
             content=jsonable_encoder(charge),
             status_code=http_status.HTTP_201_CREATED,

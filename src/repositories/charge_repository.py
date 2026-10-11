@@ -54,7 +54,7 @@ class ChargeRepository:
             charge.payment_url = f"https://pay.qitech.com.br/c/{charge_key}"
 
         self.session.add(charge)
-        self.session.commit()
+        self.session.flush()
         return charge
 
     def update_status(self, charge_id: int, to_status_enum: str, paid_at: Optional[datetime] = None) -> Charge:

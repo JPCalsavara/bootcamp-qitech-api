@@ -40,7 +40,13 @@ class ChargeController(BaseController):
         self.pocket_repository = PocketRepository(self.context)
         self.payment_connector = PaymentConnector()
 
-    def create_charge(self, account_key: str, payload: dict) -> dict:
+    def create_charge(self, account_key: str, payload: dict, idempotency_key: Optional[str] = None) -> dict:
+        # 1. Idempotência (ADR-0006)
+        if idempotency_key:
+            cached = self.ledger_repository.get_idempotency(idempotency_key)
+            if cached:
+                return cached.response_body
+
         account = self.account_repository.get_by_key(account_key)
         if not account:
             raise NotFoundAccount(account_key)
@@ -79,7 +85,21 @@ class ChargeController(BaseController):
             customer_document=customer_document,
         )
 
-        return ChargeDTO.obj_to_dict(charge)
+        response_body = ChargeDTO.obj_to_dict(charge)
+
+        # Salva idempotência se chave fornecida (ADR-0006)
+        if idempotency_key:
+            req_hash = hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
+            self.ledger_repository.save_idempotency(
+                idempotency_key=idempotency_key,
+                request_hash=req_hash,
+                response_code=201,
+                response_body=response_body,
+            )
+
+        # O controller decide o commit ao final do trabalho com sucesso
+        self.context.db_session.commit()
+        return response_body
 
     def get_charge(self, charge_key: str) -> dict:
         charge = self.charge_repository.get_by_key(charge_key)

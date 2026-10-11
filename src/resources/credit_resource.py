@@ -1,3 +1,4 @@
+from fastapi import Request
 from fastapi import status as http_status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
@@ -8,9 +9,10 @@ from utils.schema_handler import SchemaHandler
 
 class CreditResource:
     @SchemaHandler.validate("post_credit_contract.json")
-    def on_post_contract(self, payload: dict) -> JSONResponse:
+    def on_post_contract(self, payload: dict, request: Request) -> JSONResponse:
+        idempotency_key = request.headers.get("Idempotency-Key") or request.headers.get("idempotency-key")
         controller = CreditController()
-        contract = controller.contract_credit(payload)
+        contract = controller.contract_credit(payload, idempotency_key=idempotency_key)
         return JSONResponse(
             content=jsonable_encoder(contract),
             status_code=http_status.HTTP_201_CREATED,
@@ -25,9 +27,10 @@ class CreditResource:
         )
 
     @SchemaHandler.validate("post_anticipation.json")
-    def on_post_anticipation(self, payload: dict) -> JSONResponse:
+    def on_post_anticipation(self, payload: dict, request: Request) -> JSONResponse:
+        idempotency_key = request.headers.get("Idempotency-Key") or request.headers.get("idempotency-key")
         controller = CreditController()
-        anticipation = controller.anticipate_receivables(payload)
+        anticipation = controller.anticipate_receivables(payload, idempotency_key=idempotency_key)
         return JSONResponse(
             content=jsonable_encoder(anticipation),
             status_code=http_status.HTTP_201_CREATED,

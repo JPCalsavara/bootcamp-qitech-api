@@ -44,7 +44,7 @@ class PaymentConnector(RestConnector):
                 "customer_document": customer_document,
             },
         )
-        return resp.response_json or {}
+        return resp.json or {}
 
     def check_charge_status(self, charge_key: str, method: Optional[str] = None) -> Dict[str, Any]:
         """Consulta o status de liquidação de uma cobrança junto ao parceiro/banco."""
@@ -57,4 +57,4 @@ class PaymentConnector(RestConnector):
                 "method": method or "BOLETO",
             }
         resp = self.send(f"/charges/{charge_key}/status", "GET")
-        return resp.response_json or {}
+        return resp.json or {}

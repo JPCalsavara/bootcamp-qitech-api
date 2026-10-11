@@ -62,4 +62,4 @@ class KycConnector(RestConnector):
         # Chamada real ao parceiro
         payload = {"cpf": cpf, "cnpj": cnpj}
         response: BaseConnectorResponse = self.send(endpoint="/analyze", method="POST", payload=payload)
-        return response.response_json or {}
+        return response.json or {}
