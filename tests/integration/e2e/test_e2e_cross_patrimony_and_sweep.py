@@ -156,6 +156,7 @@ class TestE2ECrossPatrimonyAndSweep:
                 "destination_account_key": supplier_key,
                 "amount": 1000000,
                 "description": "Pagamento de Maquinário com Cash Sweep",
+                "transaction_pin": "1234",
             },
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )

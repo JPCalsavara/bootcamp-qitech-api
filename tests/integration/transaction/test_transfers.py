@@ -56,6 +56,7 @@ class TestTransfers:
             "destination_account_key": pf_key,
             "amount": 20000,
             "description": "Pró-labore parcial",
+            "transaction_pin": "1234",
         }
         resp_transfer = ClientRequisition.send(
             "POST",
@@ -93,6 +94,7 @@ class TestTransfers:
             "destination_account_key": pf_key,
             "amount": 100000,
             "description": "Transferência sem saldo",
+            "transaction_pin": "1234",
         }
         resp = ClientRequisition.send(
             "POST",
@@ -120,6 +122,7 @@ class TestTransfers:
             "destination_account_key": pf_key,
             "amount": 10000,
             "description": "Transferência com Idempotência",
+            "transaction_pin": "1234",
         }
 
         # 1ª chamada com a chave
@@ -150,3 +153,48 @@ class TestTransfers:
         # Saldo deve ter sido debitado apenas UMA vez (30000 - 10000 = 20000)
         resp_bal = ClientRequisition.send("GET", f"/accounts/{pj_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_bal.response_json["balance"] == 20000
+
+    def test_transfer_invalid_pin_returns_401(self) -> None:
+        pj_key, pf_key = self._setup_customer_and_accounts()
+
+        # Aporte inicial
+        ClientRequisition.send(
+            "POST",
+            "/transactions/cash-in",
+            payload={"account_key": pj_key, "amount": 20000},
+            headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
+        )
+
+        transfer_payload = {
+            "source_account_key": pj_key,
+            "destination_account_key": pf_key,
+            "amount": 5000,
+            "description": "Tentativa com PIN errado",
+            "transaction_pin": "9999",
+        }
+        resp = ClientRequisition.send(
+            "POST",
+            "/transactions/transfers",
+            payload=transfer_payload,
+            headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
+        )
+        assert resp.response_status == 401
+        assert resp.response_json["code"] == "QIT000402"
+
+    def test_transfer_invalid_pin_format_returns_400(self) -> None:
+        pj_key, pf_key = self._setup_customer_and_accounts()
+
+        transfer_payload = {
+            "source_account_key": pj_key,
+            "destination_account_key": pf_key,
+            "amount": 5000,
+            "description": "PIN inválido (letras ou tamanho diferente de 4)",
+            "transaction_pin": "abcd",
+        }
+        resp = ClientRequisition.send(
+            "POST",
+            "/transactions/transfers",
+            payload=transfer_payload,
+            headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
+        )
+        assert resp.response_status == 400

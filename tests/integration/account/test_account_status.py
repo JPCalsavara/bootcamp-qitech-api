@@ -200,6 +200,7 @@ class TestAccountStatus:
                 "destination_account_key": dst_key,
                 "amount": 35000,
                 "description": "Tentativa com saldo bloqueado",
+                "transaction_pin": "1234",
             },
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -229,6 +230,7 @@ class TestAccountStatus:
                 "destination_account_key": dst_key,
                 "amount": 35000,
                 "description": "Transferência pós desbloqueio",
+                "transaction_pin": "1234",
             },
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )

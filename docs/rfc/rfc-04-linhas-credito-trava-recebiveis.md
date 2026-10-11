@@ -2,15 +2,15 @@
 
 | | |
 |---|---|
-| **Status** | **Proposta** |
+| **Status** | **Concluída / Implementada (v1.0)** |
 | **Time** | Core Banking & Crédito |
 | **Data** | 23/09/2026 |
 | **Versão** | 1.0 (Uniformizada com o Modelo Canônico de Customer e Consolidação) |
 
 > [!NOTE]
-> **Grau de Maturidade e Roadmap**:
-> - **Implementado em Código**: Estrutura dos modelos relacionais `CreditContract`, `CreditInstallment`, `ReceivablesAnticipation` em `src/models/credit.py` e tipos transacionais no ledger para crédito (`CREDIT_DISBURSEMENT`, `CREDIT_AMORTIZATION`, `RECEIVABLES_ANTICIPATION`).
-> - **Roadmap / Em Refinamento**: Integração com a esteira de CCB da QI Tech SCD via conector, orquestração do split automático de vendas em `AmortizationPocket`, job noturno de execução de garantia cruzada PF/PJ por atraso e fluxo de conciliação de `ChargebackClaim`.
+> **Grau de Maturidade e Implementação (v1.0)**:
+> - **Implementado e Validado (100%)**: Modelos relacionais `CreditContract`, `CreditInstallment`, `ReceivablesAnticipation`, simulação e contratação com Tabela Price, antecipação de recebíveis com taxa de desconto, trava inteligente de recebíveis com teto de déficit no `AmortizationPocket`, quitação de parcelas via `POST /credit/installments/settle-due` e execução de garantia cruzada patrimonial PF/PJ após tolerância de 5 dias (Art. 368 Código Civil).
+
 
 ---
 

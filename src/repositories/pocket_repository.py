@@ -16,6 +16,9 @@ class PocketRepository:
     def get_by_key(self, pocket_key: str) -> Optional[Pocket]:
         return self.session.query(Pocket).filter(Pocket.pocket_key == pocket_key).first()
 
+    def get_by_id(self, pocket_id: int) -> Optional[Pocket]:
+        return self.session.query(Pocket).filter(Pocket.id == pocket_id).first()
+
     def get_pockets_by_account_id(self, account_id: int) -> List[Pocket]:
         return self.session.query(Pocket).filter(Pocket.account_id == account_id).all()
 

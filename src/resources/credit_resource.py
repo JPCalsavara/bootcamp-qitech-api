@@ -44,3 +44,11 @@ class CreditResource:
             content=jsonable_encoder(result),
             status_code=http_status.HTTP_200_OK,
         )
+
+    def on_post_settle_due(self, payload: dict = None) -> JSONResponse:
+        controller = CreditController()
+        result = controller.settle_due_installments(payload or {})
+        return JSONResponse(
+            content=jsonable_encoder(result),
+            status_code=http_status.HTTP_200_OK,
+        )

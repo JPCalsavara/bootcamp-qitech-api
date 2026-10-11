@@ -2,15 +2,15 @@
 
 | | |
 |---|---|
-| **Status** | **Aprovada / Parcialmente Implementada** |
+| **Status** | **Concluída / Implementada (v1.0)** |
 | **Time** | Core Banking, Identidade & Compliance |
 | **Data** | 23/09/2026 |
 | **Versão** | 1.0 (Consolidação Unificada das RFCs 01 e 03) |
 
 > [!NOTE]
-> **Grau de Maturidade e Roadmap**:
-> - **Implementado em Código**: Estrutura base de `Customer`, provisionamento atômico de `BusinessAccount` e `PersonalAccount`, hash seguro de senha e PIN transacional (`Argon2id`), identificadores públicos UUIDv4 ([ADR-0005](file:///home/jpcalsavara/projetos/andamento/bootcamp-qitech-api/docs/adr/0005-desacoplamento-identificadores-uuid-publico.md)), controle de saldo cautelar ([Res. BCB 103/2021](file:///home/jpcalsavara/projetos/andamento/bootcamp-qitech-api/docs/adr/0007-estados-tabela-dominio-historico-append-only.md)) e cash-in com contrapartida contábil.
-> - **Roadmap / Em Refinamento**: Esteira assíncrona de KYC via conector de bureau/antifraude (`KycConnector`), consolidação da tabela `customer_risk_profile` e disparo de notificações regulatórias do MED/DICT.
+> **Grau de Maturidade e Implementação (v1.0)**:
+> - **Implementado e Validado (100%)**: Estrutura base de `Customer`, provisionamento atômico de `BusinessAccount` e `PersonalAccount`, hash seguro de senha e PIN transacional de 4 dígitos, validação de transações financeiras, identificadores públicos UUIDv4 ([ADR-0005](docs/adr/0005-desacoplamento-identificadores-uuid-publico.md)), controle de saldo cautelar ([Res. BCB 103/2021](docs/adr/0007-estados-tabela-dominio-historico-append-only.md)), máquina de estados regulatória (Res. BCB 518/2025) e cash-in com contrapartida contábil.
+
 
 ---
 

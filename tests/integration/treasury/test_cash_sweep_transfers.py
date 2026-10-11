@@ -67,6 +67,7 @@ class TestCashSweepTransfers:
                 "destination_account_key": dst_key,
                 "amount": 20000,
                 "description": "Pagamento Fornecedor",
+                "transaction_pin": "1234",
             },
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -115,6 +116,7 @@ class TestCashSweepTransfers:
                 "destination_account_key": dst_key,
                 "amount": 20000,
                 "description": "Transferência com Cash Sweep Automático",
+                "transaction_pin": "1234",
             },
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -168,6 +170,7 @@ class TestCashSweepTransfers:
                 "destination_account_key": dst_key,
                 "amount": 15000,
                 "description": "Transferência Impossível",
+                "transaction_pin": "1234",
             },
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )

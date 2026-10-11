@@ -2,15 +2,15 @@
 
 | | |
 |---|---|
-| **Status** | **Em Refinamento / Parcialmente Implementada** |
+| **Status** | **Concluída / Implementada (v1.0)** |
 | **Time** | Core Banking, Governança MEI & Tesouraria |
 | **Data** | 23/09/2026 |
 | **Versão** | 1.0 (Consolidação Unificada das RFCs 06 e 07) |
 
 > [!NOTE]
-> **Grau de Maturidade e Roadmap**:
-> - **Implementado em Código**: Subcontas e envelopes `Pocket` vinculados à `BusinessAccount`, tabelas e regras de negócio de `TransferPolicy` (teto mensal de retiradas PJ -> PF com erro formal `QIT002001`) e estrutura do `RevenueTracker` para monitoramento anual do teto do MEI de R$ 81.000,00.
-> - **Roadmap / Em Refinamento**: Mecanismo de Cash Sweep automático invisível no débito, controle de lotes de custódia em `yield_position`, apuração de CDI diário com regra retroativa D+30 e retenção na fonte de IOF e IR regressivo junto ao BaaS da QI Tech.
+> **Grau de Maturidade e Implementação (v1.0)**:
+> - **Implementado e Validado (100%)**: Subcontas e envelopes `Pocket` vinculados à `BusinessAccount`, tabelas e regras de negócio de `TransferPolicy` (teto diário de retiradas PJ -> PF com controle de política `QIT002009`), estrutura do `RevenueTracker` para monitoramento anual do teto do MEI de R$ 81.000,00, mecanismo de Cash Sweep automático entre PF e PJ e apuração diária de rendimento CDB 100% CDI via `POST /treasury/accrue-yield`.
+
 
 ---
 

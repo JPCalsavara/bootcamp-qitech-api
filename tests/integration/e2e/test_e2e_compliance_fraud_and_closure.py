@@ -95,6 +95,7 @@ class TestE2EComplianceFraudAndClosure:
                 "destination_account_key": pf_key,
                 "amount": 200000,
                 "description": "Tentativa de esvaziamento de fundos",
+                "transaction_pin": "1234",
             },
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -110,6 +111,7 @@ class TestE2EComplianceFraudAndClosure:
                 "destination_account_key": pf_key,
                 "amount": 50000,
                 "description": "Retirada permitida dentro da margem livre",
+                "transaction_pin": "1234",
             },
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -180,6 +182,7 @@ class TestE2EComplianceFraudAndClosure:
                 "destination_account_key": pf_key,
                 "amount": 150000,
                 "description": "Zerar saldo para encerramento de conta",
+                "transaction_pin": "1234",
             },
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )

@@ -246,6 +246,7 @@ class TestFullMeiLifecycle:
                 "destination_account_key": pf_key,
                 "amount": 50000,  # R$ 500,00
                 "description": "Distribuição de Lucros MEI",
+                "transaction_pin": "1234",
             },
         )
         assert status_code == 422
@@ -267,6 +268,7 @@ class TestFullMeiLifecycle:
                 "destination_account_key": pf_key,
                 "amount": 50000,  # R$ 500,00
                 "description": "Distribuição de Lucros MEI Aprovada",
+                "transaction_pin": "1234",
             },
         )
         assert status_code == 200

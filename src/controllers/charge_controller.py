@@ -123,16 +123,23 @@ class ChargeController(BaseController):
             description=f"Liquidação de cobrança {charge.method.enumerator}",
         )
 
-        # 3. Trava de Recebíveis se houver contrato de crédito ativo (RFC 05)
+        # 3. Trava de Recebíveis Inteligente com Teto da Parcela (RFC 04)
         active_contract = self.credit_repository.get_active_contract_for_pj(account.id)
         retained_amount = 0
         if active_contract and active_contract.pocket_id:
-            retention_rate = float(active_contract.retention_percentage) / 100.0
-            retained_amount = int(charge.amount * retention_rate)
-            if retained_amount > 0 and account.balance >= retained_amount:
-                # Transfere da conta PJ para a caixinha de trava
-                account.balance -= retained_amount
-                self.pocket_repository.update_pocket_balance(active_contract.pocket_id, retained_amount)
+            next_installment = self.credit_repository.get_next_open_installment(active_contract.id)
+            if next_installment:
+                pocket = self.pocket_repository.get_by_id(active_contract.pocket_id)
+                pocket_balance = pocket.current_balance if pocket else 0
+                deficit = max(0, next_installment.amount - pocket_balance)
+                if deficit > 0:
+                    retention_rate = float(active_contract.retention_percentage) / 100.0
+                    potential_retention = int(charge.amount * retention_rate)
+                    retained_amount = min(potential_retention, deficit)
+                    if retained_amount > 0 and account.balance >= retained_amount:
+                        # Transfere da conta PJ para a caixinha de trava
+                        account.balance -= retained_amount
+                        self.pocket_repository.update_pocket_balance(active_contract.pocket_id, retained_amount)
 
         # 4. Atualiza Revenue Tracker MEI (RFC 07)
         self.pocket_repository.add_revenue(

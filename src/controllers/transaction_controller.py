@@ -4,7 +4,13 @@ from typing import List, Optional
 
 from controllers.base_controller import BaseController
 from dtos.transaction_dto import LedgerEntryDTO, TransactionDTO
-from errors.custom_errors import InsufficientFunds, NotFoundAccount, PolicyViolation
+from errors.custom_errors import (
+    AccountBlockedForDebit,
+    InsufficientFunds,
+    InvalidTransactionPin,
+    NotFoundAccount,
+    PolicyViolation,
+)
 from repositories.account_repository import AccountRepository
 from repositories.ledger_repository import LedgerRepository
 from repositories.pocket_repository import PocketRepository
@@ -21,6 +27,7 @@ class TransactionController(BaseController):
         src_key = payload["source_account_key"]
         dst_key = payload["destination_account_key"]
         amount = payload["amount"]
+        pin = payload["transaction_pin"]
         description = payload.get("description", "Transferência entre contas")
 
         # 1. Idempotência (ADR-0006)
@@ -36,6 +43,21 @@ class TransactionController(BaseController):
         dst_account = self.account_repository.get_by_key(dst_key)
         if not dst_account:
             raise NotFoundAccount(dst_key)
+
+        if src_account.status.enumerator != "active":
+            raise AccountBlockedForDebit(
+                f"Conta de origem em status {src_account.status.enumerator} não pode realizar transferências."
+            )
+
+        if dst_account.status.enumerator != "active":
+            raise AccountBlockedForDebit(
+                f"Conta de destino em status {dst_account.status.enumerator} não pode receber transferências."
+            )
+
+        # 2. Validação de Segurança do Transaction PIN (RFC 01 e RFC 02)
+        pin_hash = hashlib.sha256(pin.encode("utf-8")).hexdigest()
+        if not src_account.customer or src_account.customer.pin_hash != pin_hash:
+            raise InvalidTransactionPin()
 
         # 2. Verificação de Governança Patrimonial (RFC 07): PJ -> PF
         if src_account.account_type.enumerator == "PJ" and dst_account.account_type.enumerator == "PF":

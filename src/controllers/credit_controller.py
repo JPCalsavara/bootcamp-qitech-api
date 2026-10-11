@@ -241,3 +241,57 @@ class CreditController(BaseController):
             "total_settled_amount": total_settled_amount,
             "details": details,
         }
+
+    def settle_due_installments(self, payload: Optional[dict] = None) -> dict:
+        """RFC 04: Quitação automática de parcelas de CCB utilizando o saldo retido no Pocket de amortização."""
+        payload = payload or {}
+        target_date_str = payload.get("target_date")
+        target_date = date.fromisoformat(target_date_str) if target_date_str else date.today()
+
+        due_installments = self.credit_repository.get_due_installments(target_date)
+        settled_count = 0
+        total_settled_amount = 0
+        details = []
+
+        for installment in due_installments:
+            contract = installment.contract
+            if not contract or not contract.pocket_id:
+                continue
+
+            pocket = self.pocket_repository.get_by_id(contract.pocket_id)
+            if not pocket:
+                continue
+
+            needed = installment.amount - installment.paid_amount
+            if pocket.current_balance >= needed:
+                self.pocket_repository.update_pocket_balance(contract.pocket_id, -needed)
+                installment.paid_amount += needed
+                installment.status = "PAID"
+                installment.paid_at = datetime.now()
+                self.context.db_session.flush()
+
+                settled_count += 1
+                total_settled_amount += needed
+                details.append(
+                    {
+                        "contract_key": contract.contract_key,
+                        "installment_key": installment.installment_key,
+                        "installment_number": installment.installment_number,
+                        "amount_settled": needed,
+                        "status": "PAID_FROM_POCKET",
+                    }
+                )
+
+                if all(inst.status == "PAID" for inst in contract.installments):
+                    self.credit_repository.update_contract_status(contract, "settled")
+                elif contract.status.enumerator != "active":
+                    self.credit_repository.update_contract_status(contract, "active")
+
+        self.context.db_session.commit()
+
+        return {
+            "processed_installments": len(due_installments),
+            "settled_count": settled_count,
+            "total_settled_amount": total_settled_amount,
+            "details": details,
+        }

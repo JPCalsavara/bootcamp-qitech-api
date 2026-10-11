@@ -110,6 +110,7 @@ class TestPocketsGovernance:
                 "source_account_key": pj_key,
                 "destination_account_key": pf_key,
                 "amount": 10000,
+                "transaction_pin": "1234",
             },
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -133,6 +134,7 @@ class TestPocketsGovernance:
                 "source_account_key": pj_key,
                 "destination_account_key": pf_key,
                 "amount": 10000,
+                "transaction_pin": "1234",
             },
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
