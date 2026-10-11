@@ -181,85 +181,97 @@ erDiagram
 
 ---
 
-### Desenho de Fluxo da Rota (As Seis Perguntas Respondidas no Desenho)
+### Desenho de Fluxo da Rota (Diagramas de Sequência Oficiais)
 
 #### Fluxo 1: Validação de Política de Retirada (`TransferPolicy`) em Transferência PJ -> PF
 
 ```mermaid
-flowchart TD
-    START((Início: Transferência PJ -> PF)) --> CHECK_POLICY["1. Buscar TransferPolicy associada à Conta PJ de origem"]
-    CHECK_POLICY --> HAS_POLICY{"Existe política cadastrada?"}
-    
-    HAS_POLICY -- "Não" --> PROCEED_STANDARD["Prosseguir com transferência padrão (RFC 02)"]
-    HAS_POLICY -- "Sim" --> CHECK_RESET{"Mês civil virou desde last_reset_date?"}
-    
-    CHECK_RESET -- "Sim" --> RESET_CYCLE["Zerar current_month_drawn_cents = 0 e atualizar data"]
-    CHECK_RESET -- "Não" --> CHECK_LIMIT
-    
-    RESET_CYCLE --> CHECK_LIMIT{"Novo saque ultrapassa o teto?<br/>current_drawn + amount > monthly_limit_cents"}
-    CHECK_LIMIT -- "Sim (409)" --> ERR_CEILING["Error (409 QIT002001 - Teto de Retirada Mensal Excedido)"]
-    
-    CHECK_LIMIT -- "Não" --> EXEC_TRANSFER["2. Executar transferência no Ledger (RFC 02)<br/>3. Atualizar current_month_drawn_cents += amount"]
-    
-    EXEC_TRANSFER --> SUCCESS_TR((Transferência Concluída com Sucesso))
+sequenceDiagram
+    autonumber
+    actor Cliente
+    participant API as API (FastAPI)
+    participant DB as PostgreSQL (CoreBank)
 
-    style ERR_CEILING fill:#ffcdd2,color:#b71c1c,stroke:#b71c1c
-    style SUCCESS_TR fill:#c8e6c9,color:#1b5e20,stroke:#1b5e20
-    style START fill:#e0f2f1,color:#004d40,stroke:#004d40
+    Cliente->>API: POST /transactions/transfers (Origem PJ -> Destino PF)
+    API->>DB: SELECT * FROM transfer_policies WHERE account_id = ?
+    DB-->>API: Política encontrada?
+    
+    opt Política existente
+        Note over API: Verifica virada de mês civil (last_reset_date)
+        opt Novo mês civil iniciado
+            API->>DB: UPDATE transfer_policies SET current_month_drawn_cents = 0
+        end
+        opt Novo saque excede teto mensal (current_drawn + amount > monthly_limit)
+            API-->>Cliente: 409 QIT002001 (Teto de Retirada Mensal Excedido)
+        end
+        API->>DB: UPDATE transfer_policies SET current_month_drawn_cents += amount
+    end
+
+    Note over API,DB: Execução atômica no Ledger (RFC 02)
+    API->>DB: Executar lançamentos de partidas dobradas
+    API-->>Cliente: 201 Created (Transferência Concluída com Sucesso)
 ```
 
 #### Fluxo 2: Cash Sweep Invisível e Resgate Automático no Débito
 
 ```mermaid
-flowchart TD
-    START_SWEEP((Débito Solicitado: PIX/Boleto)) --> CHECK_AVAIL["1. Validar se saldo total unificado cobre o valor:<br/>available_balance_cents >= debit_amount_cents"]
-    CHECK_AVAIL --> HAS_ENOUGH{"Saldo total cobre?"}
-    
-    HAS_ENOUGH -- "Não (422)" --> ERR_422["Error (422 QIT001010 - Saldo Insuficiente)"]
-    HAS_ENOUGH -- "Sim" --> LOCK_ACC["2. Travar Conta com lock de Dijkstra (SELECT FOR UPDATE)"]
-    
-    LOCK_ACC --> CHECK_FREE{"Saldo líquido desinvestido cobre o débito?"}
-    CHECK_FREE -- "Sim" --> DEBIT_FREE["Debitar saldo diretamente da conta"]
-    
-    CHECK_FREE -- "Não" --> CALC_DEFICIT["Calcular déficit para resgate automático:<br/>deficit_cents = debit_amount - free_cash_cents"]
-    CALC_DEFICIT --> SELECT_LOTS["3. Localizar lotes em yield_position via FIFO tributário (menor IOF/IR)"]
-    
-    SELECT_LOTS --> ATOMIC_SWEEP["4. Transação Atômica no Ledger:<br/>- Baixar valor nos registros de YieldPosition<br/>- Debitar BusinessAccount para o pagamento<br/>- Liquidar contrapartida contábil"]
-    
-    DEBIT_FREE --> FINISH_DEBIT((Pagamento Liquidado com Sucesso))
-    ATOMIC_SWEEP --> FINISH_DEBIT
+sequenceDiagram
+    autonumber
+    actor Cliente
+    participant API as API (FastAPI)
+    participant DB as PostgreSQL (Ledger / Yield)
 
-    style ERR_422 fill:#ffcdd2,color:#b71c1c,stroke:#b71c1c
-    style FINISH_DEBIT fill:#c8e6c9,color:#1b5e20,stroke:#1b5e20
-    style START_SWEEP fill:#e0f2f1,color:#004d40,stroke:#004d40
+    Cliente->>API: Solicitação de Débito (PIX / Transferência / Boleto)
+    API->>DB: SELECT balance, blocked_balance FROM accounts WHERE id = ? FOR UPDATE
+    DB-->>API: Saldo apurado
+    opt Saldo total insuficiente (conta + CDB)
+        API-->>Cliente: 422 QIT001010 (Saldo Insuficiente)
+    end
+
+    alt Saldo livre em conta corrente cobre o valor
+        API->>DB: Debitar saldo diretamente da conta
+    else Saldo livre insuficiente (Aciona Cash Sweep Automático)
+        Note over API: Calcula déficit = debit_amount - free_cash
+        API->>DB: SELECT * FROM yield_positions WHERE account_id = ? FOR UPDATE
+        Note over API,DB: Resgate automático FIFO de lotes CDB
+        API->>DB: UPDATE yield_positions SET principal_amount -= deficit
+        API->>DB: INSERT INTO ledger_entries (TREASURY_SWEEP: Resgate CDB)
+        API->>DB: INSERT INTO ledger_entries (DEBIT: Execução do Débito Principal)
+    end
+
+    API->>DB: COMMIT
+    API-->>Cliente: 200 OK / 201 Created (Pagamento Liquidado com Sucesso)
 ```
 
 #### Fluxo 3: Rotina Noturna de Apuração do CDI e Rendimento Retroativo D+30
 
 ```mermaid
-flowchart TD
-    NIGHT_JOB((Job Noturno de Tesouraria)) --> GET_CDI["1. Obter taxa CDI anualizada divulgada pela B3"]
-    GET_CDI --> FETCH_ACTIVE["2. Buscar lotes de saldo remunerado ativos em yield_position"]
-    
-    FETCH_ACTIVE --> LOOP_LOTS{"Para cada lote de posição:"}
-    LOOP_LOTS --> IS_IN_POCKET{"Lote alocado em Pocket ou Saldo Livre?"}
-    
-    IS_IN_POCKET -- "Pocket" --> CALC_IMMEDIATE["3. Calcular rendimento diário 100% CDI (D+1 imediato)"]
-    IS_IN_POCKET -- "Saldo Livre" --> EVAL_AGE{"Permanência completou 30 dias?"}
-    
-    EVAL_AGE -- "< 30 dias" --> ACCRUE_VIRTUAL["Acumular juros virtuais de float (não creditados)"]
-    EVAL_AGE -- "Exatos 30 dias" --> UNLOCK_RETRO["Liberar juros integrais acumulados dos 30 dias retroativos!"]
-    EVAL_AGE -- "> 30 dias" --> CALC_IMMEDIATE
-    
-    CALC_IMMEDIATE --> POST_YIELD["4. Transação Atômica de Rendimento:<br/>- DÉBITO TreasuryYieldAccount<br/>- CRÉDITO Account (ou Pocket)<br/>- Gravar evento em yield_accrual_event<br/>- Acumular fração de centavos em fractional_cents_remainder"]
-    
-    UNLOCK_RETRO --> POST_YIELD
-    ACCRUE_VIRTUAL --> NEXT_ITEM((Próximo Lote))
-    POST_YIELD --> NEXT_ITEM
+sequenceDiagram
+    autonumber
+    participant Cron as Cron Job Noturno
+    participant B3 as B3 / BCB API
+    participant DB as PostgreSQL (Ledger / Yield)
 
-    style NIGHT_JOB fill:#e0f2f1,color:#004d40,stroke:#004d40
-    style POST_YIELD fill:#c8e6c9,color:#1b5e20,stroke:#1b5e20
-    style UNLOCK_RETRO fill:#fff9c4,color:#f57f17,stroke:#f57f17
+    Cron->>B3: Obter taxa CDI anualizada divulgada
+    B3-->>Cron: Taxa CDI do dia útil
+    Cron->>DB: SELECT * FROM yield_positions WHERE principal_amount > 0
+    DB-->>Cron: Lotes de posições ativas
+
+    loop Para cada lote de posição
+        alt Saldo alocado em Pocket (Caixinha)
+            Note over Cron: Rendimento D+1 imediato a 100% do CDI
+            Cron->>DB: INSERT INTO ledger_entries (DÉBITO TreasuryYield / CRÉDITO Pocket)
+        else Saldo livre em conta corrente (Regra D+30)
+            opt Permanência < 30 dias
+                Note over Cron: Acumula juros virtuais de float (não creditados)
+            end
+            opt Completou exatamente 30 dias
+                Note over Cron: Libera juros integrais acumulados dos 30 dias retroativos
+                Cron->>DB: INSERT INTO ledger_entries (CRÉDITO retroativo na conta)
+            end
+        end
+    end
+    Cron->>DB: COMMIT
 ```
 
 ---

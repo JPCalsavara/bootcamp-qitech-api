@@ -149,54 +149,66 @@ erDiagram
 
 ---
 
-### Desenho de Fluxo da Rota (As Seis Perguntas Respondidas no Desenho)
+### Desenho de Fluxo da Rota (Diagramas de Sequência Oficiais)
 
 #### Fluxo 1: Trava Dinâmica de Recebíveis e Amortização Automática em Pocket
 
 ```mermaid
-flowchart TD
-    START((Recebimento Liquidado na Conta PJ)) --> CHECK_ACTIVE_CREDIT["1. Buscar contratos de crédito ativos com trava de recebíveis"]
-    CHECK_ACTIVE_CREDIT --> HAS_CREDIT{"Possui contrato ativo com trava?"}
-    
-    HAS_CREDIT -- "Não" --> REGULAR_CREDIT["Saldo líquido 100% livre para uso do MEI"]
-    HAS_CREDIT -- "Sim" --> CHECK_TARGET{"Pocket AMORTIZATION_RESERVE atingiu a meta da parcela do mês?"}
-    
-    CHECK_TARGET -- "Sim" --> REGULAR_CREDIT
-    CHECK_TARGET -- "Não" --> CALC_SPLIT["2. Calcular retenção automática:<br/>retention_cents = min(amount * %trava, deficit_da_parcela)"]
-    
-    CALC_SPLIT --> ATOMIC_SPLIT["3. Transação Atômica no Ledger:<br/>- DÉBITO BusinessAccount / CRÉDITO Pocket 'AMORTIZATION_RESERVE'<br/>- Atualizar saldo retido para quitação"]
-    
-    ATOMIC_SPLIT --> CHECK_DUE{"Hoje é a data de vencimento da parcela?"}
-    CHECK_DUE -- "Não" --> WAIT_DUE((Fundos permanecem retidos no envelope))
-    
-    CHECK_DUE -- "Sim" --> LIQUIDATE_NOW["4. Transação Atômica de Quitação:<br/>- DÉBITO Pocket / CRÉDITO SettlementAccount da CCB<br/>- Marcar credit_installment.status = 'PAID'<br/>- Abater saldo devedor outstanding_balance_cents"]
-    
-    LIQUIDATE_NOW --> SUCCESS_AMORT((Parcela Liquidada sem Atraso))
+sequenceDiagram
+    autonumber
+    actor Partner as Gateway / Pagador
+    participant API as API (CoreBank)
+    participant DB as PostgreSQL (Ledger / Credit)
 
-    style SUCCESS_AMORT fill:#c8e6c9,color:#1b5e20,stroke:#1b5e20
-    style REGULAR_CREDIT fill:#e0f2f1,color:#004d40,stroke:#004d40
-    style START fill:#e0f2f1,color:#004d40,stroke:#004d40
+    Partner->>API: Liquidação de recebível na Conta PJ (amount)
+    API->>DB: SELECT * FROM credit_contracts WHERE account_id = ? AND status = 'active'
+    DB-->>API: Contratos com trava de recebíveis?
+
+    alt Sem contrato ativo ou meta mensal já batida
+        Note over API: Saldo 100% livre creditado na Conta PJ
+    else Contrato com trava ativo e parcela em aberto
+        Note over API: Calcula retenção = min(amount * %trava, deficit_parcela)
+        API->>DB: BEGIN TRANSACTION
+        API->>DB: INSERT INTO ledger_entries (DEBIT: BusinessAccount, CREDIT: Pocket 'AMORTIZATION_RESERVE')
+        opt Data de vencimento da parcela atingida
+            Note over API,DB: Quitação automática da parcela
+            API->>DB: INSERT INTO ledger_entries (DEBIT: Pocket, CREDIT: SettlementAccount CCB)
+            API->>DB: UPDATE credit_installments SET status = 'PAID'
+            API->>DB: UPDATE credit_contracts SET outstanding_balance_cents -= parcela
+        end
+        API->>DB: COMMIT
+    end
 ```
 
 #### Fluxo 2: Acionamento de Garantia Cruzada PF/PJ por Inadimplência
 
 ```mermaid
-flowchart TD
-    TRIGGER_DUE((Parcela Vencida há 5 dias úteis)) --> CHECK_PJ{"Conta PJ tem saldo disponível suficiente?"}
-    
-    CHECK_PJ -- "Sim" --> DEBIT_PJ["1. Débito automático na BusinessAccount e liquidação da parcela"]
-    CHECK_PJ -- "Não" --> CHECK_PF{"Conta PF (PersonalAccount) tem saldo disponível?"}
-    
-    CHECK_PF -- "Não" --> FLAG_DEFAULT["Marcar contrato como 'in_default'<br/>Acionar régua de cobrança e alerta nos órgãos de proteção"]
-    
-    CHECK_PF -- "Sim" --> EXEC_CROSS["2. Transação Atômica de Compensação Cruzada (Art. 368 CC):<br/>- DÉBITO PersonalAccount (CPF)<br/>- CRÉDITO SettlementAccount da CCB<br/>- Inserir justificativa formal: CROSS_GUARANTEE_MEI_SETTLEMENT<br/>- Marcar parcela como 'PAID'"]
-    
-    EXEC_CROSS --> NOTIFY_MEI["3. Notificar o MEI sobre a compensação patrimonial realizada"]
-    NOTIFY_MEI --> RECOVERED((Parcela Regularizada com Sucesso))
+sequenceDiagram
+    autonumber
+    participant Cron as Cobrança Automática
+    participant DB as PostgreSQL (Ledger / Credit)
+    actor MEI as Microempreendedor (PF/PJ)
 
-    style RECOVERED fill:#c8e6c9,color:#1b5e20,stroke:#1b5e20
-    style FLAG_DEFAULT fill:#ffcdd2,color:#b71c1c,stroke:#b71c1c
-    style TRIGGER_DUE fill:#fff9c4,color:#f57f17,stroke:#f57f17
+    Cron->>DB: SELECT * FROM credit_installments WHERE due_date < NOW() - 5d AND status = 'OVERDUE'
+    DB-->>Cron: Parcelas inadimplentes
+
+    Cron->>DB: SELECT balance FROM accounts WHERE id = business_account_id
+    alt Conta PJ possui saldo disponível
+        Cron->>DB: Débito em BusinessAccount e liquidação da parcela
+    else Conta PJ sem saldo (Acionamento da Garantia Cruzada PF)
+        Cron->>DB: SELECT balance FROM accounts WHERE id = personal_account_id
+        alt Conta PF (PersonalAccount) possui saldo disponível
+            Note over Cron,DB: Compensação Patrimonial Cruzada (Art. 368 Código Civil)
+            Cron->>DB: BEGIN TRANSACTION
+            Cron->>DB: INSERT INTO ledger_entries (DEBIT: PersonalAccount, CREDIT: SettlementAccount CCB)
+            Cron->>DB: UPDATE credit_installments SET status = 'PAID'
+            Cron->>DB: COMMIT
+            Cron-)MEI: Notificação formal de compensação de dívida via garantia cruzada
+        else Nenhuma das contas possui saldo
+            Cron->>DB: UPDATE credit_contracts SET status = 'in_default'
+            Note over Cron: Aciona mesa de cobrança e inclusão em bureaus de restrição
+        end
+    end
 ```
 
 ---
