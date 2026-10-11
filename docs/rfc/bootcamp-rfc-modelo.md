@@ -86,29 +86,31 @@ erDiagram
 > 6. Qual o código de sucesso retornado (`200`, `201`, `202`)?
 
 ```mermaid
-flowchart TD
-    START((Início)) --> FIND["Buscar entidade principal com lock"]
-    FIND --> CHECK_EXISTS{"Entidade existe?"}
-    
-    CHECK_EXISTS -- "Não (404)" --> ERR_404["Error (404 QIT001001)"]
-    CHECK_EXISTS -- "Sim" --> VALIDATE_RULES["Validar regras de negócio / saldo / PIN"]
-    
-    VALIDATE_RULES --> CAN_PROCEED{"Pode prosseguir?"}
-    CAN_PROCEED -- "Não (409/422)" --> ERR_409["Error (409/422)"]
-    CAN_PROCEED -- "Sim" --> CHECK_DUPLICATE["Verificar duplicidade / idempotência"]
-    
-    CHECK_DUPLICATE --> IS_DUP{"Já existe?"}
-    IS_DUP -- "Sim (409)" --> ERR_DUP["Error (409 QIT001008)"]
-    IS_DUP -- "Não" --> PERSIST["Transação Atômica:<br/>Persistir dados e lançamentos contábeis"]
-    
-    PERSIST --> CREATE_DTO["Criar DTO de resposta formatado"]
-    CREATE_DTO -- "201" --> SUCCESS((Success 201))
+sequenceDiagram
+    autonumber
+    actor Cliente
+    participant API as API (FastAPI)
+    participant DB as PostgreSQL (Banco)
 
-    style ERR_404 fill:#ffcdd2,color:#b71c1c,stroke:#b71c1c
-    style ERR_409 fill:#ffcdd2,color:#b71c1c,stroke:#b71c1c
-    style ERR_DUP fill:#ffcdd2,color:#b71c1c,stroke:#b71c1c
-    style SUCCESS fill:#c8e6c9,color:#1b5e20,stroke:#1b5e20
-    style START fill:#e0f2f1,color:#004d40,stroke:#004d40
+    Cliente->>API: POST /exemplo {campo_1, campo_2} (Idempotency-Key)
+    Note over API: 1. Validações de formato e integridade
+    opt Formato inválido
+        API-->>Cliente: 400 QIT000001 (Payload Inválido)
+    end
+
+    API->>DB: 2. Buscar entidade com lock pessimista (SELECT FOR UPDATE)
+    DB-->>API: Registro encontrado?
+    opt Entidade inexistente
+        API-->>Cliente: 404 QIT001001 (Não Encontrado)
+    end
+
+    Note over API,DB: 3. Transação Atômica no Banco
+    API->>DB: BEGIN TRANSACTION
+    API->>DB: INSERT / UPDATE registros
+    API->>DB: COMMIT
+
+    Note over API: 4. Montar DTO de resposta
+    API-->>Cliente: 201 Created {key, status, ...}
 ```
 
 ---

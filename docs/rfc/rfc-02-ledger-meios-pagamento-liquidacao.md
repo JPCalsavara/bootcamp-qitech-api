@@ -207,82 +207,86 @@ erDiagram
 
 ---
 
-### Desenho de Fluxo da Rota (As Seis Perguntas Respondidas no Desenho)
+### Desenho de Fluxo da Rota (Diagramas de Sequência Oficiais)
 
 #### Fluxo 1: `POST /transactions/transfers` — Execução com Validação de PIN, Dijkstra e Partidas Dobradas
 
 ```mermaid
-flowchart TD
-    START((Início: POST /transfers)) --> CHECK_IDEM["1. Verificar idempotency_record pela Idempotency-Key"]
-    CHECK_IDEM --> HAS_IDEM{"Chave já existe?"}
-    
-    HAS_IDEM -- "Sim" --> CHECK_HASH{"Mesmo request_hash?"}
-    CHECK_HASH -- "Sim" --> RETURN_CACHE["Retornar resposta em cache (sem reprocessar)"]
-    RETURN_CACHE --> END_CACHE((Success/Error Cache))
-    CHECK_HASH -- "Não" --> ERR_409_IDEM["Error (409 QIT001008 - Conflito de Idempotência)"]
-    
-    HAS_IDEM -- "Não" --> VALIDATE_PIN["2. Validar transaction_pin contra pin_hash do Customer"]
-    VALIDATE_PIN --> PIN_OK{"PIN correto?"}
-    
-    PIN_OK -- "Não (401)" --> ERR_401["Error (401 QIT000402 - PIN Inválido)"]
-    PIN_OK -- "Sim" --> LOCK_ACCOUNTS["3. Adquirir locks ordenados (ADR-0002 Dijkstra):<br/>sorted([origin_id, destination_id]) com SELECT FOR UPDATE"]
-    
-    LOCK_ACCOUNTS --> ACCOUNTS_EXIST{"Ambas as contas existem?"}
-    ACCOUNTS_EXIST -- "Não (404)" --> ERR_404["Error (404 QIT001001)"]
-    ACCOUNTS_EXIST -- "Sim" --> CHECK_ACTIVE{"Origem ativa? Destino apto a receber crédito?"}
-    
-    CHECK_ACTIVE -- "Não (409)" --> ERR_INACTIVE["Error (409 QIT001009 - Conta Inativa/Bloqueada para Débito)"]
-    CHECK_ACTIVE -- "Sim" --> CHECK_BALANCE{"Origem tem saldo livre?<br/>balance_cents - blocked_balance_cents >= amount_cents"}
-    
-    CHECK_BALANCE -- "Não (422)" --> ERR_FUNDS["Error (422 QIT001010 - Saldo Disponível Insuficiente)"]
-    CHECK_BALANCE -- "Sim" --> CHECK_FISCAL{"Origem é PJ e Destino é PF do mesmo titular?"}
-    
-    CHECK_FISCAL -- "Sim" --> SET_PROFIT["transaction_type = PROFIT_DISTRIBUTION (Art. 14 LC 123)"]
-    CHECK_FISCAL -- "Não" --> SET_TRANSFER["transaction_type = TRANSFER"]
-    
-    SET_PROFIT --> ATOMIC_TX
-    SET_TRANSFER --> ATOMIC_TX
-    
-    ATOMIC_TX["4. Transação Atômica no PostgreSQL:<br/>- Inserir Transaction (status: 'settled')<br/>- Inserir LedgerEntry DEBIT na origem (com balance_after_cents)<br/>- Inserir LedgerEntry CREDIT no destino (com balance_after_cents)<br/>- Atualizar saldos em account<br/>- Gravar idempotency_record com TTL 24h"]
-    
-    ATOMIC_TX --> BUILD_DTO["5. Montar DTO enriquecido com transaction_key e end_to_end_id"]
-    BUILD_DTO -- "201 Created" --> SUCCESS((Success 201 Created))
+sequenceDiagram
+    autonumber
+    actor Cliente
+    participant API as API (FastAPI)
+    participant DB as PostgreSQL (Ledger)
 
-    style ERR_409_IDEM fill:#ffcdd2,color:#b71c1c,stroke:#b71c1c
-    style ERR_401 fill:#ffcdd2,color:#b71c1c,stroke:#b71c1c
-    style ERR_404 fill:#ffcdd2,color:#b71c1c,stroke:#b71c1c
-    style ERR_INACTIVE fill:#ffcdd2,color:#b71c1c,stroke:#b71c1c
-    style ERR_FUNDS fill:#ffcdd2,color:#b71c1c,stroke:#b71c1c
-    style SUCCESS fill:#c8e6c9,color:#1b5e20,stroke:#1b5e20
-    style START fill:#e0f2f1,color:#004d40,stroke:#004d40
-    style ATOMIC_TX fill:#e1f5fe,color:#01579b,stroke:#0288d1
+    Cliente->>API: POST /transfers {source, destination, amount, pin} (Idempotency-Key)
+    API->>DB: SELECT response_body FROM idempotency_records WHERE key = ?
+    DB-->>API: Registro encontrado?
+    opt Chave em cache (Idempotente)
+        API-->>Cliente: Retorna resposta em cache (sem reprocessar)
+    end
+
+    Note over API: Valida transaction_pin contra hash Argon2id do Customer
+    opt PIN incorreto
+        API-->>Cliente: 401 QIT000402 (PIN Inválido)
+    end
+
+    Note over API,DB: Locks Ordenados (ADR-0002 Dijkstra)
+    API->>DB: BEGIN TRANSACTION
+    API->>DB: SELECT * FROM accounts WHERE id IN (first_id, second_id) ORDER BY id ASC FOR UPDATE
+    DB-->>API: Contas bloqueadas na ordem determinística
+
+    opt Conta inexistente ou inativa
+        API-->>Cliente: 404 QIT001001 / 409 QIT001009
+    end
+    opt Saldo livre insuficiente (balance - blocked < amount)
+        API-->>Cliente: 422 QIT001010 (Saldo Insuficiente)
+    end
+
+    Note over API,DB: Partidas Dobradas Imutáveis (Soma Zero)
+    API->>DB: INSERT INTO transactions (type: 'TRANSFER' ou 'PROFIT_DISTRIBUTION', amount: X)
+    API->>DB: INSERT INTO ledger_entries (DEBIT: source, amount: X, balance_after)
+    API->>DB: INSERT INTO ledger_entries (CREDIT: destination, amount: X, balance_after)
+    API->>DB: UPDATE accounts SET balance = balance - X WHERE id = source_id
+    API->>DB: UPDATE accounts SET balance = balance + X WHERE id = dest_id
+    API->>DB: INSERT INTO idempotency_records (key, response, ttl: 24h)
+    API->>DB: COMMIT
+
+    API-->>Cliente: 201 Created {transaction_key, end_to_end_id, status: 'settled'}
 ```
 
-#### Fluxo 2: Ingestão de Webhook e Liquidação com Débito Atômico de Tarifa ([ADR-0008](file:///home/jpcalsavara/projetos/andamento/bootcamp-qitech-api/docs/adr/0008-tarifacao-transacional-debito-atomico-ledger.md))
+#### Fluxo 2: Ingestão de Webhook e Liquidação com Débito Atômico de Tarifa (ADR-0008)
 
 ```mermaid
-flowchart TD
-    WEBHOOK_IN((Webhook Recebido)) --> VERIFY_SIG["1. Validar Assinatura HMAC (X-Signature-SHA256)"]
-    VERIFY_SIG --> IS_SIG_OK{"Assinatura válida?"}
-    
-    IS_SIG_OK -- "Não (401)" --> ERR_401_SIG["Error (401 Unauthorized)"]
-    IS_SIG_OK -- "Sim" --> RECORD_WEBHOOK["2. Inserir webhook_event (status: 'received')"]
-    
-    RECORD_WEBHOOK --> ACK_HTTP["3. Responder HTTP 200 OK imediatamente ao parceiro"]
-    ACK_HTTP --> LOCK_TRIPARTITE["4. Ordenar IDs de contas e travar (Dijkstra):<br/>sorted([settlement_account_id, business_account_id, fee_revenue_account_id])"]
-    
-    LOCK_TRIPARTITE --> CHECK_CHARGE{"Cobrança já liquidada?"}
-    CHECK_CHARGE -- "Sim" --> IGNORE_DUP["Ignorar duplicidade (Idempotente)"]
-    
-    CHECK_CHARGE -- "Não" --> ATOMIC_SETTLE["5. Transação Atômica no Ledger:<br/>- Lançamento Bruto: DÉBITO SettlementAccount / CRÉDITO BusinessAccount<br/>- Tarifação Atômica: DÉBITO BusinessAccount / CRÉDITO FeeRevenueAccount<br/>- Atualizar RevenueTracker com o valor bruto da venda<br/>- Atualizar charge.status para 'settled'"]
-    
-    ATOMIC_SETTLE --> FINISH_SETTLE((Liquidação e Tarifação Concluídas))
+sequenceDiagram
+    autonumber
+    actor Partner as Gateway / Banco Parceiro
+    participant API as API (Webhook Receiver)
+    participant DB as PostgreSQL (Ledger)
 
-    style ERR_401_SIG fill:#ffcdd2,color:#b71c1c,stroke:#b71c1c
-    style ACK_HTTP fill:#c8e6c9,color:#1b5e20,stroke:#1b5e20
-    style FINISH_SETTLE fill:#c8e6c9,color:#1b5e20,stroke:#1b5e20
-    style WEBHOOK_IN fill:#e0f2f1,color:#004d40,stroke:#004d40
-    style ATOMIC_SETTLE fill:#e1f5fe,color:#01579b,stroke:#0288d1
+    Partner->>API: POST /webhooks/payments {event, charge_key, amount, fee} (X-Signature-SHA256)
+    Note over API: Valida assinatura HMAC com dual-secret, timestamp e nonce
+    opt Assinatura inválida ou replay attack
+        API-->>Partner: 401 Unauthorized
+    end
+
+    API->>DB: INSERT INTO webhook_events (payload, status: 'received')
+    API-->>Partner: 200 OK (Ack síncrono imediato)
+
+    Note over API,DB: Liquidação Assíncrona com Lock Tripartite (Dijkstra)
+    API->>DB: BEGIN TRANSACTION
+    API->>DB: SELECT * FROM accounts WHERE id IN (settlement_id, business_id, fee_id) ORDER BY id ASC FOR UPDATE
+    DB-->>API: Contas travadas ordenadas
+
+    opt Cobrança já liquidada (Idempotência)
+        Note over API: Ignora duplicidade sem novos lançamentos
+    end
+
+    Note over API,DB: Partidas Dobradas: Lançamento Bruto + Débito Atômico de Tarifa
+    API->>DB: INSERT INTO ledger_entries (DEBIT: SettlementAccount, CREDIT: BusinessAccount, amount: Bruto)
+    API->>DB: INSERT INTO ledger_entries (DEBIT: BusinessAccount, CREDIT: FeeRevenueAccount, amount: Tarifa)
+    API->>DB: UPDATE charges SET status = 'settled'
+    API->>DB: UPDATE revenue_trackers SET accumulated_gross_revenue += Bruto
+    API->>DB: COMMIT
 ```
 
 ---

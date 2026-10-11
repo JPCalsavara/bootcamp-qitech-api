@@ -4,6 +4,7 @@ from abc import ABCMeta
 
 import requests
 
+from errors.custom_errors import ExternalServiceTimeout, ExternalServiceUnavailable
 from utils.logger import get_logger
 
 
@@ -56,13 +57,20 @@ class RestConnector(metaclass=ABCMeta):
         # Se o outro serviço demorar mais que o timeout, o requests
         # levanta um Timeout aqui — e isso é o comportamento desejado:
         # falhar rápido e com nome, em vez de esperar pra sempre.
-        response = requests.request(
-            method.upper(),
-            url,
-            json=payload,
-            headers=headers,
-            timeout=self.timeout,
-        )
+        try:
+            response = requests.request(
+                method.upper(),
+                url,
+                json=payload,
+                headers=headers,
+                timeout=self.timeout,
+            )
+        except requests.exceptions.Timeout:
+            self.logger.error(f"TIMEOUT calling {method} {url} after {self.timeout}s")
+            raise ExternalServiceTimeout(service_name=self.logger.name)
+        except requests.exceptions.ConnectionError:
+            self.logger.error(f"CONNECTION ERROR calling {method} {url}")
+            raise ExternalServiceUnavailable(service_name=self.logger.name)
 
         elapsed_ms = (time.perf_counter() - started_at) * 1000
         self.logger.info(f"INCOMING RESPONSE {response.status_code} {method} {url} - {elapsed_ms:.1f} ms")
@@ -96,3 +104,8 @@ class BaseConnectorResponse:
             self.json = json.loads(response.content)
         except ValueError:
             pass
+
+    @property
+    def response_json(self):
+        """Alias para self.json garantindo compatibilidade uniforme."""
+        return self.json

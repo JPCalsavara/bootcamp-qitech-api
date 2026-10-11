@@ -224,3 +224,38 @@ class TestChargesWebhook:
         # Saldo permanece inalterado
         resp_bal2 = ClientRequisition.send("GET", f"/accounts/{pj_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_bal2.response_json["balance"] == 29750
+
+    def test_charge_idempotency_prevents_duplicate_charge(self) -> None:
+        pj_key = self._setup_pj_account()
+        due_date = (date.today() + timedelta(days=5)).isoformat()
+        idempotency_key = f"idem-charge-{random.randint(100000, 999999)}"
+
+        payload = {"method": "PIX", "amount": 15000, "due_date": due_date}
+        headers = {
+            "INTERNAL-TOKEN": INTERNAL_TOKEN,
+            "Idempotency-Key": idempotency_key,
+        }
+
+        # 1ª chamada
+        resp1 = ClientRequisition.send(
+            "POST",
+            f"/accounts/{pj_key}/charges",
+            payload=payload,
+            headers=headers,
+        )
+        assert resp1.response_status == 201
+        charge1 = resp1.response_json
+
+        # 2ª chamada com mesma chave de idempotência
+        resp2 = ClientRequisition.send(
+            "POST",
+            f"/accounts/{pj_key}/charges",
+            payload=payload,
+            headers=headers,
+        )
+        assert resp2.response_status == 201
+        charge2 = resp2.response_json
+
+        # Mesma chave de idempotência retorna a mesma cobrança em cache
+        assert charge1["charge_key"] == charge2["charge_key"]
+        assert charge1["amount"] == charge2["amount"]

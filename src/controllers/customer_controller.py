@@ -57,6 +57,7 @@ class CustomerController(BaseController):
             pin_hash=pin_hash,
         )
 
+        self.context.db_session.commit()
         return CustomerDTO.obj_to_dict(customer)
 
     def get_by_key(self, customer_key: str) -> dict:

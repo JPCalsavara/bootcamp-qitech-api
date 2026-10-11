@@ -1,0 +1,147 @@
+/* ==========================================================================
+   Mermaid Custom Theme CSS - Flowchart & Sequence Diagram Semantic Colors
+   ========================================================================== */
+
+/* Padrão para nós de Execução (Retângulos) -> Azul */
+.node rect,
+.node.process rect,
+.node.execucao rect {
+    fill: #e0f2fe !important;
+    stroke: #0284c7 !important;
+    stroke-width: 2px !important;
+    rx: 4px !important;
+    ry: 4px !important;
+}
+
+/* Padrão para Condicionais e Loops (Losangos / Polígonos) -> Amarelo */
+.node polygon,
+.node.decision polygon,
+.node.condicional polygon {
+    fill: #fef9c3 !important;
+    stroke: #ca8a04 !important;
+    stroke-width: 2px !important;
+}
+
+/* Padrão para Nós de Início (Círculos) -> Verde */
+.node.start circle,
+.node.inicio circle,
+.node.start rect,
+.node.inicio rect,
+.node.start .label,
+.node.inicio .label {
+    fill: #dcfce7 !important;
+    stroke: #16a34a !important;
+    stroke-width: 2.5px !important;
+}
+
+/* Padrão para Nós de Fim / Erro -> Vermelho */
+.node.end circle,
+.node.fim circle,
+.node.error circle,
+.node.erro circle,
+.node.terminal circle {
+    fill: #fee2e2 !important;
+    stroke: #dc2626 !important;
+    stroke-width: 2.5px !important;
+}
+
+/* Nós de Sucesso Terminal -> Verde */
+.node.success circle,
+.node.sucesso circle {
+    fill: #dcfce7 !important;
+    stroke: #16a34a !important;
+    stroke-width: 2.5px !important;
+}
+
+/* Rótulos e tipografia */
+.node .label {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    color: #0f172a !important;
+}
+
+/* Linhas e conexões */
+.edgePath .path {
+    stroke: #475569 !important;
+    stroke-width: 1.6px !important;
+}
+
+.edgeLabel {
+    background-color: #ffffff !important;
+    color: #334155 !important;
+    font-size: 10px !important;
+    font-weight: 500 !important;
+    padding: 2px 4px !important;
+    border-radius: 3px !important;
+}
+
+/* ==========================================================================
+   Estilização Específica para Diagramas de Sequência (Padrão QiTech)
+   ========================================================================== */
+
+/* Caixas dos Participantes / Atores */
+.actor {
+    fill: #e0f2fe !important;
+    stroke: #0284c7 !important;
+    stroke-width: 1.8px !important;
+    rx: 4px !important;
+    ry: 4px !important;
+}
+
+text.actor > tspan {
+    fill: #0b2545 !important;
+    font-weight: 600 !important;
+    font-size: 12px !important;
+}
+
+/* Linhas de vida dos atores */
+.actor-line {
+    stroke: #94a3b8 !important;
+    stroke-dasharray: 4, 4 !important;
+}
+
+/* Mensagens e setas */
+.messageLine0,
+.messageLine1 {
+    stroke: #0f172a !important;
+    stroke-width: 1.6px !important;
+}
+
+.messageText {
+    fill: #0f172a !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
+}
+
+/* Notas explicativas (Amarelo Suave) */
+.note {
+    fill: #fef9c3 !important;
+    stroke: #ca8a04 !important;
+    stroke-width: 1.5px !important;
+    rx: 3px !important;
+    ry: 3px !important;
+}
+
+.noteText > tspan {
+    fill: #854d0e !important;
+    font-size: 10px !important;
+    font-weight: 500 !important;
+}
+
+/* Blocos opt, alt, loop, rect */
+.labelBox {
+    stroke: #0284c7 !important;
+    fill: #e0f2fe !important;
+}
+
+.labelText {
+    fill: #0369a1 !important;
+    font-size: 10px !important;
+    font-weight: 600 !important;
+}
+
+.loopLine {
+    stroke: #0284c7 !important;
+    stroke-dasharray: 2, 2 !important;
+}

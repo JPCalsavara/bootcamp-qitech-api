@@ -264,3 +264,26 @@ class ReplayAttackDetected(QIException):
         description = message
         translation = "Identificador de requisição (nonce) já utilizado anteriormente."
         super().__init__(title, self.code, http_status, description, translation)
+
+
+class ExternalServiceTimeout(QIException):
+    code = "QIT002013"
+
+    def __init__(self, service_name="Serviço externo") -> None:
+        title = "External Service Timeout"
+        http_status = 504
+        description = f"Timeout waiting for external service response: {service_name}."
+        translation = f"Tempo limite esgotado ao aguardar resposta do serviço externo ({service_name})."
+        super().__init__(title, self.code, http_status, description, translation)
+
+
+class ExternalServiceUnavailable(QIException):
+    code = "QIT002014"
+
+    def __init__(self, service_name="Serviço externo") -> None:
+        title = "External Service Unavailable"
+        http_status = 502
+        description = f"Failed to connect to external service: {service_name}."
+        translation = f"Não foi possível conectar ao serviço externo ({service_name})."
+        super().__init__(title, self.code, http_status, description, translation)
+

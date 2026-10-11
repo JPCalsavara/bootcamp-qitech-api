@@ -182,92 +182,110 @@ erDiagram
 
 ---
 
-### Desenho de Fluxo da Rota (As Seis Perguntas Respondidas no Desenho)
+### Desenho de Fluxo da Rota (Diagramas de Sequência Oficiais)
 
 #### Fluxo 1: `POST /customers` — Submissão Cadastral e Disparo Assíncrono
 
 ```mermaid
-flowchart TD
-    START((Início: POST /customers)) --> VALIDATE_INPUT["1. Validar JSON Schema, DVs de CPF/CNPJ e PIN numérico de 4 dígitos"]
-    VALIDATE_INPUT --> CHECK_FORMAT{"Formato válido?"}
-    
-    CHECK_FORMAT -- "Não (400/422)" --> ERR_400["Error (400 QIT000001 / 422 QIT001003)"]
-    CHECK_FORMAT -- "Sim" --> CHECK_DUPLICATES["2. Buscar duplicidade no banco por CPF, CNPJ ou E-mail"]
-    
-    CHECK_DUPLICATES --> HAS_DUP{"Documento já cadastrado?"}
-    HAS_DUP -- "Sim (409)" --> ERR_409["Error (409 QIT001004 / QIT001005 / QIT001006)"]
-    
-    HAS_DUP -- "Não" --> HASH_CREDS["3. Gerar hashes independentes de senha e PIN via Argon2id"]
-    HASH_CREDS --> ATOMIC_CREATE["4. Transação Atômica:<br/>- Inserir Customer (status_id: 'created')<br/>- Inserir CustomerStatusEvent (INITIAL_CREATION)<br/>- Despachar job assíncrono de KYC"]
-    
-    ATOMIC_CREATE --> BUILD_DTO["5. Montar DTO com customer_key, status 'created' e links de consulta"]
-    BUILD_DTO -- "202 Accepted" --> SUCCESS((Success 202 Accepted))
+sequenceDiagram
+    autonumber
+    actor Cliente
+    participant API as API (FastAPI)
+    participant DB as PostgreSQL (CoreBank)
+    participant Queue as Fila Assíncrona (KYC)
 
-    style ERR_400 fill:#ffcdd2,color:#b71c1c,stroke:#b71c1c
-    style ERR_409 fill:#ffcdd2,color:#b71c1c,stroke:#b71c1c
-    style SUCCESS fill:#c8e6c9,color:#1b5e20,stroke:#1b5e20
-    style START fill:#e0f2f1,color:#004d40,stroke:#004d40
-    style ATOMIC_CREATE fill:#e1f5fe,color:#01579b,stroke:#0288d1
+    Cliente->>API: POST /customers {cpf, cnpj, name, password, pin}
+    Note over API: Valida JSON Schema, DVs de CPF/CNPJ e PIN de 4 dígitos
+    opt Formato inválido
+        API-->>Cliente: 400 QIT000001 / 422 QIT001003
+    end
+
+    API->>DB: SELECT id FROM customers WHERE cpf = ? OR cnpj = ? OR email = ?
+    DB-->>API: Registros duplicados?
+    opt Documento ou e-mail já cadastrado
+        API-->>Cliente: 409 QIT001004 (CPF) / QIT001005 (CNPJ)
+    end
+
+    Note over API: Gera hashes independentes de senha e PIN via Argon2id
+    API->>DB: BEGIN TRANSACTION
+    API->>DB: INSERT INTO customers (status: 'created', ...)
+    API->>DB: INSERT INTO customer_status_events (INITIAL_CREATION)
+    API->>DB: COMMIT
+    
+    API-)Queue: Despacha job assíncrono de KYC (customer_key)
+    API-->>Cliente: 202 Accepted {customer_key, status: 'created'}
 ```
 
 #### Fluxo 2: Esteira de KYC e Ativação com Provisionamento Automático de Contas
 
 ```mermaid
-flowchart TD
-    JOB_START((Início Job KYC)) --> CALL_RECEITA["1. Consultar Receita Federal / QSA MEI via KycConnector"]
-    CALL_RECEITA --> IS_MEI_OK{"CPF é titular legal do CNPJ e ambos ativos?"}
-    
-    IS_MEI_OK -- "Não" --> REJECT_CADASTRO["Transição para 'rejected':<br/>Gravar evento MEI_OWNERSHIP_MISMATCH"]
-    
-    IS_MEI_OK -- "Sim" --> CALL_DICT["2. Consultar DICT BACEN (Marcações ativas de fraude no MED)"]
-    CALL_DICT --> HAS_MED_ALERT{"Possui flag ativa de fraude no MED?"}
-    
-    HAS_MED_ALERT -- "Sim" --> FLAG_REVIEW["Transição para 'under_review':<br/>Gravar evento DICT_MED_FLAGGED (Mesa de Fraude)"]
-    
-    HAS_MED_ALERT -- "Não" --> CALL_SERASA["3. Consultar Bureau (Score Serasa/Quod) e salvar customer_risk_profile"]
-    CALL_SERASA --> ATOMIC_PROVISION["4. Transação Atômica de Ativação:<br/>- Atualizar Customer para status 'active'<br/>- Inserir CustomerStatusEvent ('KYC_PASSED')<br/>- Criar BusinessAccount (CNPJ, active, balance: 0)<br/>- Criar PersonalAccount (CPF, active, balance: 0)<br/>- Inserir AccountStatusEvents iniciais"]
-    
-    ATOMIC_PROVISION --> COMPLETE((Contas Provisionadas e Prontas para Transacionar))
+sequenceDiagram
+    autonumber
+    participant Worker as Worker KYC
+    participant KYC as KycConnector (Bureau)
+    participant DICT as DICT (BACEN MED)
+    participant DB as PostgreSQL (CoreBank)
 
-    style REJECT_CADASTRO fill:#ffcdd2,color:#b71c1c,stroke:#b71c1c
-    style FLAG_REVIEW fill:#fff9c4,color:#f57f17,stroke:#f57f17
-    style COMPLETE fill:#c8e6c9,color:#1b5e20,stroke:#1b5e20
-    style JOB_START fill:#e0f2f1,color:#004d40,stroke:#004d40
-    style ATOMIC_PROVISION fill:#e1f5fe,color:#01579b,stroke:#0288d1
+    Worker->>KYC: Consultar Receita Federal / QSA MEI
+    KYC-->>Worker: Dados de titularidade e situação cadastral
+    opt CPF divergente do CNPJ ou inapto
+        Worker->>DB: UPDATE customers SET status = 'rejected' (MEI_OWNERSHIP_MISMATCH)
+    end
+
+    Worker->>DICT: Consultar marcações ativas de fraude no MED
+    DICT-->>Worker: Histórico de alertas MED
+    opt Flag ativa de fraude no DICT/MED
+        Worker->>DB: UPDATE customers SET status = 'under_review' (DICT_MED_FLAGGED)
+    end
+
+    Worker->>KYC: Consultar bureau de crédito (Score Serasa/Quod)
+    KYC-->>Worker: Retorna score e perfil de risco
+    
+    Note over Worker,DB: Transação Atômica de Provisionamento
+    Worker->>DB: BEGIN TRANSACTION
+    Worker->>DB: UPDATE customers SET status = 'active'
+    Worker->>DB: INSERT INTO customer_status_events ('KYC_PASSED')
+    Worker->>DB: INSERT INTO accounts (type: 'BUSINESS', cnpj, status: 'active')
+    Worker->>DB: INSERT INTO accounts (type: 'PERSONAL', cpf, status: 'active')
+    Worker->>DB: INSERT INTO account_status_events (INITIAL_ACTIVE)
+    Worker->>DB: COMMIT
+    Note over Worker,DB: Contas gêmeas (PF e PJ) ativas e prontas para transacionar
 ```
 
 #### Fluxo 3: `PUT /accounts/{account_key}/status` — Encerramento e Regras de Saldo Residual
 
 ```mermaid
-flowchart TD
-    START_STATUS((Início: PUT /status)) --> FIND_ACC["1. Buscar conta pela account_key com lock pessimista (SELECT FOR UPDATE)"]
-    FIND_ACC --> ACC_EXISTS{"Conta existe?"}
-    
-    ACC_EXISTS -- "Não (404)" --> ERR_404["Error (404 QIT001001)"]
-    ACC_EXISTS -- "Sim" --> IS_ALREADY_CLOSED{"Conta já é 'closed'?"}
-    
-    IS_ALREADY_CLOSED -- "Sim (409)" --> ERR_TERMINAL["Error (409 QIT001002 - Estado Final Inalterável)"]
-    IS_ALREADY_CLOSED -- "Não" --> IS_CLOSING{"Novo status desejado é 'closed'?"}
-    
-    IS_CLOSING -- "Não (ex: active <-> blocked)" --> APPLY_STATUS["2. Atualizar status da conta e registrar account_status_event"]
-    IS_CLOSING -- "Sim" --> CHECK_REASON{"Motivo é COMPLIANCE_FRAUD ou BCB518?"}
-    
-    CHECK_REASON -- "Sim" --> FORCE_CLOSE["3. Encerramento Compulsório BACEN 518:<br/>Congelar saldos, marcar 'closed' e registrar evento"]
-    CHECK_REASON -- "Não (Encerramento Voluntário)" --> CHECK_ZERO{"Saldo total é rigorosamente zero?<br/>balance_cents == 0"}
-    
-    CHECK_ZERO -- "Não (409)" --> ERR_RESIDUAL["Error (409 QIT001011 - Saldo Residual Positivo)"]
-    CHECK_ZERO -- "Sim" --> CLOSE_OK["3. Atualizar status para 'closed' e gravar account_status_event"]
-    
-    APPLY_STATUS --> DTO_RES["4. Montar DTO de resposta"]
-    FORCE_CLOSE --> DTO_RES
-    CLOSE_OK --> DTO_RES
-    DTO_RES -- "202 Accepted" --> END_SUCCESS((Success 202 Accepted))
+sequenceDiagram
+    autonumber
+    actor Cliente
+    participant API as API (FastAPI)
+    participant DB as PostgreSQL (CoreBank)
 
-    style ERR_404 fill:#ffcdd2,color:#b71c1c,stroke:#b71c1c
-    style ERR_TERMINAL fill:#ffcdd2,color:#b71c1c,stroke:#b71c1c
-    style ERR_RESIDUAL fill:#ffcdd2,color:#b71c1c,stroke:#b71c1c
-    style END_SUCCESS fill:#c8e6c9,color:#1b5e20,stroke:#1b5e20
-    style START_STATUS fill:#e0f2f1,color:#004d40,stroke:#004d40
+    Cliente->>API: PUT /accounts/{account_key}/status {status, reason_code}
+    API->>DB: SELECT * FROM accounts WHERE key = ? FOR UPDATE
+    DB-->>API: Conta encontrada com lock pessimista
+    opt Conta inexistente
+        API-->>Cliente: 404 QIT001001
+    end
+    opt Conta já está 'closed'
+        API-->>Cliente: 409 QIT001002 (Estado Final Inalterável)
+    end
+
+    alt Novo status é 'closed' (Encerramento Voluntário)
+        API->>DB: SELECT balance_cents, blocked_balance_cents FROM accounts WHERE id = ?
+        DB-->>API: Saldo apurado
+        opt Saldo total > 0 (Saldo Residual Pendente)
+            API-->>Cliente: 409 QIT001011 (Saldo Residual Positivo)
+        end
+        API->>DB: UPDATE accounts SET status = 'closed'
+        API->>DB: INSERT INTO account_status_events (CLOSED_VOLUNTARY)
+    else Encerramento Compulsório (BACEN 518) ou Alteração Active/Blocked
+        API->>DB: UPDATE accounts SET status = ?, blocked_balance_cents = ?
+        API->>DB: INSERT INTO account_status_events (status_change)
+    end
+
+    API->>DB: COMMIT
+    API-->>Cliente: 202 Accepted {account_key, status, reason_code}
 ```
 
 ---

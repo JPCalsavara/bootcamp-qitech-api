@@ -1,5 +1,8 @@
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+import hashlib
+import json
+from typing import Optional
 
 from controllers.base_controller import BaseController
 from dtos.credit_dto import CreditContractDTO, ReceivablesAnticipationDTO
@@ -20,7 +23,13 @@ class CreditController(BaseController):
         self.pocket_repository = PocketRepository(self.context)
         self.ledger_repository = LedgerRepository(self.context)
 
-    def contract_credit(self, payload: dict) -> dict:
+    def contract_credit(self, payload: dict, idempotency_key: Optional[str] = None) -> dict:
+        # 1. Idempotência (ADR-0006)
+        if idempotency_key:
+            cached = self.ledger_repository.get_idempotency(idempotency_key)
+            if cached:
+                return cached.response_body
+
         customer_key = payload["customer_key"]
         pj_key = payload["account_pj_key"]
         pf_key = payload["account_pf_key"]
@@ -72,7 +81,20 @@ class CreditController(BaseController):
             description=f"Desembolso de Crédito CCB {contract.contract_key}",
         )
 
-        return CreditContractDTO.obj_to_dict(contract)
+        response_body = CreditContractDTO.obj_to_dict(contract)
+
+        # Salva idempotência se chave fornecida (ADR-0006)
+        if idempotency_key:
+            req_hash = hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
+            self.ledger_repository.save_idempotency(
+                idempotency_key=idempotency_key,
+                request_hash=req_hash,
+                response_code=201,
+                response_body=response_body,
+            )
+
+        self.context.db_session.commit()
+        return response_body
 
     def get_contract(self, contract_key: str) -> dict:
         contract = self.credit_repository.get_by_key(contract_key)
@@ -80,7 +102,13 @@ class CreditController(BaseController):
             raise NotFoundCreditContract(contract_key)
         return CreditContractDTO.obj_to_dict(contract)
 
-    def anticipate_receivables(self, payload: dict) -> dict:
+    def anticipate_receivables(self, payload: dict, idempotency_key: Optional[str] = None) -> dict:
+        # 1. Idempotência (ADR-0006)
+        if idempotency_key:
+            cached = self.ledger_repository.get_idempotency(idempotency_key)
+            if cached:
+                return cached.response_body
+
         acc_key = payload["account_key"]
         charge_keys = payload["charge_keys"]
         discount_rate = Decimal(str(payload["discount_rate"]))
@@ -109,7 +137,20 @@ class CreditController(BaseController):
             description="Liquidação de Antecipação de Recebíveis",
         )
 
-        return ReceivablesAnticipationDTO.obj_to_dict(anticipation)
+        response_body = ReceivablesAnticipationDTO.obj_to_dict(anticipation)
+
+        # Salva idempotência se chave fornecida (ADR-0006)
+        if idempotency_key:
+            req_hash = hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
+            self.ledger_repository.save_idempotency(
+                idempotency_key=idempotency_key,
+                request_hash=req_hash,
+                response_code=201,
+                response_body=response_body,
+            )
+
+        self.context.db_session.commit()
+        return response_body
 
     def execute_cross_guarantee(self, payload: dict) -> dict:
         target_date_str = payload.get("target_date")
