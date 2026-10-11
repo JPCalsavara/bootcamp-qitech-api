@@ -129,3 +129,26 @@ class CreditRepository:
         if status:
             contract.status_id = status.id
             self.session.flush()
+
+    def get_next_open_installment(self, contract_id: int) -> Optional[CreditInstallment]:
+        return (
+            self.session.query(CreditInstallment)
+            .filter(
+                CreditInstallment.contract_id == contract_id,
+                CreditInstallment.status.in_(["OPEN", "OVERDUE"]),
+            )
+            .order_by(CreditInstallment.due_date.asc(), CreditInstallment.installment_number.asc())
+            .first()
+        )
+
+    def get_due_installments(self, target_date: date) -> List[CreditInstallment]:
+        return (
+            self.session.query(CreditInstallment)
+            .join(CreditContract)
+            .filter(
+                CreditInstallment.status.in_(["OPEN", "OVERDUE"]),
+                CreditInstallment.due_date <= target_date,
+            )
+            .order_by(CreditInstallment.due_date.asc())
+            .all()
+        )

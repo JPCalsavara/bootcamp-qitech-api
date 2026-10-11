@@ -6,8 +6,9 @@
     "source_account_key": { "type": "string", "format": "uuid" },
     "destination_account_key": { "type": "string", "format": "uuid" },
     "amount": { "type": "integer", "minimum": 1 },
-    "description": { "type": "string", "maxLength": 255 }
+    "description": { "type": "string", "maxLength": 255 },
+    "transaction_pin": { "type": "string", "pattern": "^[0-9]{4}$" }
   },
-  "required": ["source_account_key", "destination_account_key", "amount"],
+  "required": ["source_account_key", "destination_account_key", "amount", "transaction_pin"],
   "additionalProperties": false
 }

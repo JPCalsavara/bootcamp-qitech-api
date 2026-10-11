@@ -287,3 +287,25 @@ class ExternalServiceUnavailable(QIException):
         translation = f"Não foi possível conectar ao serviço externo ({service_name})."
         super().__init__(title, self.code, http_status, description, translation)
 
+
+class InvalidTransactionPin(QIException):
+    code = "QIT000402"
+
+    def __init__(self, message="PIN transacional inválido.") -> None:
+        title = "Invalid Transaction PIN"
+        http_status = 401
+        description = message
+        translation = "O PIN transacional informado está incorreto."
+        super().__init__(title, self.code, http_status, description, translation)
+
+
+class AccountBlockedForDebit(QIException):
+    code = "QIT002015"
+
+    def __init__(self, message="Conta bloqueada para débitos.") -> None:
+        title = "Account Blocked For Debit"
+        http_status = 409
+        description = message
+        translation = "A conta de origem está bloqueada ou inativa para transferências."
+        super().__init__(title, self.code, http_status, description, translation)
+
