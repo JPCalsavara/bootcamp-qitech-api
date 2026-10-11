@@ -47,8 +47,7 @@ class ChargeRepository:
         charge.charge_metadata = metadata
 
         if method_enum == "PIX":
-            charge.qr_code = f"00020126580014br.gov.bcb.pix0136{charge_key}5204000053039865405{
-                amount / 100:.2f}5802BR5913QI_TECH6009SAO_PAULO62070503***6304"
+            charge.qr_code = f"00020126580014br.gov.bcb.pix0136{charge_key}5204000053039865405{amount / 100:.2f}5802BR5913QI_TECH6009SAO_PAULO62070503***6304"
         elif method_enum == "BOLETO":
             charge.barcode = f"341917900101043510047910201500098{amount:010d}"
         elif method_enum == "CREDIT_CARD_LINK":

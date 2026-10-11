@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 
 from constants import check_variables
-from errors import register_error_handlers
+from errors.handlers import register_error_handlers
 from errors.base_error import error_verification
 from middlewares import (
     register_internal_token_middleware,
