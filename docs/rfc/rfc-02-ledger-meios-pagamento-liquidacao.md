@@ -2,15 +2,15 @@
 
 | | |
 |---|---|
-| **Status** | **Aprovada / Parcialmente Implementada** |
+| **Status** | **Concluída / Implementada (v1.0)** |
 | **Time** | Core Banking, Transações & Pagamentos |
 | **Data** | 23/09/2026 |
 | **Versão** | 1.0 (Consolidação Unificada das RFCs 02 e 04) |
 
 > [!NOTE]
-> **Grau de Maturidade e Roadmap**:
-> - **Implementado em Código**: Motor financeiro central de partidas dobradas ([ADR-0004](file:///home/jpcalsavara/projetos/andamento/bootcamp-qitech-api/docs/adr/0004-arquitetura-contabil-partidas-dobradas.md)), representação monetária estrita em centavos inteiros `BIGINT` ([ADR-0003](file:///home/jpcalsavara/projetos/andamento/bootcamp-qitech-api/docs/adr/0003-representacao-monetaria-centavos-bigint.md)), hierarquia de locks de Dijkstra contra deadlocks ([ADR-0002](file:///home/jpcalsavara/projetos/andamento/bootcamp-qitech-api/docs/adr/0002-prevencao-deadlock-ordenacao-dijkstra.md)), tabela de idempotência com TTL de 24h ([ADR-0006](file:///home/jpcalsavara/projetos/andamento/bootcamp-qitech-api/docs/adr/0006-idempotencia-tabela-dedicada-catalogo-erros.md)), classificação contábil da LC 123/2006 (`PROFIT_DISTRIBUTION`) e política estrita de estornos.
-> - **Roadmap / Em Refinamento**: Emissão de cobranças multimodais (`Charge` via PIX QR Code dinâmico, Boleto Híbrido e Link), ingestão de webhooks com assinatura HMAC SHA-256 e tarifação transacional automática em partidas dobradas com crédito em `FeeRevenueAccount` ([ADR-0008](file:///home/jpcalsavara/projetos/andamento/bootcamp-qitech-api/docs/adr/0008-tarifacao-transacional-debito-atomico-ledger.md)).
+> **Grau de Maturidade e Implementação (v1.0)**:
+> - **Implementado e Validado (100%)**: Motor financeiro central de partidas dobradas ([ADR-0004](docs/adr/0004-arquitetura-contabil-partidas-dobradas.md)), representação monetária em centavos inteiros `BIGINT` ([ADR-0003](docs/adr/0003-representacao-monetaria-centavos-bigint.md)), hierarquia de locks de Dijkstra contra deadlocks ([ADR-0002](docs/adr/0002-prevencao-deadlock-ordenacao-dijkstra.md)), tabela de idempotência com TTL de 24h ([ADR-0006](docs/adr/0006-idempotencia-tabela-dedicada-catalogo-erros.md)), emissão de cobranças (`Charge` via PIX, Boleto e Link), webhooks com assinatura HMAC SHA-256 e proteção contra Replay Attack, tarifação transacional automática atômica no ledger ([ADR-0008](docs/adr/0008-tarifacao-transacional-debito-atomico-ledger.md)) e validação obrigatória de PIN transacional em transferências.
+
 
 ---
 
