@@ -22,7 +22,7 @@ class LedgerEntryDTO:
     def obj_to_dict(entry: LedgerEntry) -> dict:
         return {
             "entry_key": entry.entry_key,
-            "entry_type": entry.entry_type,
+            "entry_type": entry.entry_type.enumerator if entry.entry_type else None,
             "amount": entry.amount,
             "balance_after": entry.balance_after,
             "description": entry.description,

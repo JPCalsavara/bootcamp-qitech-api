@@ -154,12 +154,24 @@ CREATE TABLE transaction_status_event(
     created_at                      TIMESTAMP NOT NULL DEFAULT(NOW())
 );
 
+CREATE TABLE ledger_entry_type(
+    id                              SERIAL PRIMARY KEY,
+    enumerator                      VARCHAR(50) NOT NULL UNIQUE,
+    description                     VARCHAR(255) NOT NULL,
+    created_at                      TIMESTAMP NOT NULL DEFAULT(NOW())
+);
+
+INSERT INTO ledger_entry_type (enumerator, description) VALUES
+('DEBIT', 'Lançamento de débito no ledger'),
+('CREDIT', 'Lançamento de crédito no ledger')
+ON CONFLICT (enumerator) DO NOTHING;
+
 CREATE TABLE ledger_entry(
     id                              SERIAL PRIMARY KEY,
     entry_key                       CHAR(36) NOT NULL UNIQUE,
     transaction_id                  INTEGER NOT NULL REFERENCES transaction(id),
     account_id                      INTEGER NOT NULL REFERENCES account(id),
-    entry_type                      VARCHAR(10) NOT NULL CHECK (entry_type IN ('DEBIT', 'CREDIT')),
+    entry_type_id                   INTEGER NOT NULL REFERENCES ledger_entry_type(id),
     amount                          BIGINT NOT NULL CHECK (amount > 0),
     balance_after                   BIGINT NOT NULL,
     description                     VARCHAR(255),
@@ -190,15 +202,28 @@ INSERT INTO kyc_risk_tier (enumerator, description) VALUES
 ('HIGH', 'Alto risco de crédito e fraude')
 ON CONFLICT (enumerator) DO NOTHING;
 
+CREATE TABLE kyc_cnd_status(
+    id                              SERIAL PRIMARY KEY,
+    enumerator                      VARCHAR(50) NOT NULL UNIQUE,
+    description                     VARCHAR(255) NOT NULL,
+    created_at                      TIMESTAMP NOT NULL DEFAULT(NOW())
+);
+
+INSERT INTO kyc_cnd_status (enumerator, description) VALUES
+('REGULAR', 'Situação cadastral regular'),
+('IRREGULAR', 'Situação cadastral irregular'),
+('PENDING', 'Situação cadastral pendente de verificação')
+ON CONFLICT (enumerator) DO NOTHING;
+
 CREATE TABLE kyc_analysis(
     id                              SERIAL PRIMARY KEY,
     analysis_key                    CHAR(36) NOT NULL UNIQUE,
     customer_id                     INTEGER NOT NULL REFERENCES customer(id),
     risk_tier_id                    INTEGER NOT NULL REFERENCES kyc_risk_tier(id),
     score                           INTEGER NOT NULL,
-    cnd_federal_status              VARCHAR(50) NOT NULL,
-    cnd_trabalhista_status          VARCHAR(50) NOT NULL,
-    cadsan_status                   VARCHAR(50) NOT NULL,
+    cnd_federal_status_id           INTEGER NOT NULL REFERENCES kyc_cnd_status(id),
+    cnd_trabalhista_status_id       INTEGER NOT NULL REFERENCES kyc_cnd_status(id),
+    cadsan_status_id                INTEGER NOT NULL REFERENCES kyc_cnd_status(id),
     flags                           JSONB NOT NULL,
     recommendation                  VARCHAR(50) NOT NULL,
     created_at                      TIMESTAMP NOT NULL DEFAULT(NOW())
@@ -308,10 +333,21 @@ CREATE TABLE charge(
     updated_at                      TIMESTAMP NOT NULL DEFAULT(NOW())
 );
 
+CREATE TABLE webhook_event_type(
+    id                              SERIAL PRIMARY KEY,
+    enumerator                      VARCHAR(50) NOT NULL UNIQUE,
+    description                     VARCHAR(255) NOT NULL,
+    created_at                      TIMESTAMP NOT NULL DEFAULT(NOW())
+);
+
+INSERT INTO webhook_event_type (enumerator, description) VALUES
+('payment.settled', 'Liquidação de pagamento confirmada pelo parceiro')
+ON CONFLICT (enumerator) DO NOTHING;
+
 CREATE TABLE webhook_event(
     id                              SERIAL PRIMARY KEY,
     event_key                       CHAR(36) NOT NULL UNIQUE,
-    event_type                      VARCHAR(100) NOT NULL,
+    event_type_id                   INTEGER NOT NULL REFERENCES webhook_event_type(id),
     payload                         JSONB NOT NULL,
     signature                       VARCHAR(255) NOT NULL,
     processed                       BOOLEAN NOT NULL DEFAULT FALSE,
@@ -322,9 +358,21 @@ CREATE TABLE webhook_event(
 CREATE TABLE webhook_nonce(
     id                              SERIAL PRIMARY KEY,
     nonce                           VARCHAR(255) NOT NULL UNIQUE,
+    webhook_nonce_key               CHAR(36) NOT NULL UNIQUE,
     created_at                      TIMESTAMP NOT NULL DEFAULT(NOW())
 );
 
+
+CREATE TABLE chargeback_claim_status(
+    id                              SERIAL PRIMARY KEY,
+    enumerator                      VARCHAR(50) NOT NULL UNIQUE,
+    description                     VARCHAR(255) NOT NULL,
+    created_at                      TIMESTAMP NOT NULL DEFAULT(NOW())
+);
+
+INSERT INTO chargeback_claim_status (enumerator, description) VALUES
+('OPEN', 'Contestação aberta aguardando análise')
+ON CONFLICT (enumerator) DO NOTHING;
 
 CREATE TABLE chargeback_claim(
     id                              SERIAL PRIMARY KEY,
@@ -332,9 +380,27 @@ CREATE TABLE chargeback_claim(
     charge_id                       INTEGER NOT NULL REFERENCES charge(id),
     amount                          BIGINT NOT NULL,
     reason                          VARCHAR(255) NOT NULL,
-    status                          VARCHAR(50) NOT NULL DEFAULT 'OPEN',
+    status_id                       INTEGER NOT NULL REFERENCES chargeback_claim_status(id),
     created_at                      TIMESTAMP NOT NULL DEFAULT(NOW()),
     updated_at                      TIMESTAMP NOT NULL DEFAULT(NOW())
+);
+
+CREATE TABLE charge_status_event(
+    id                              SERIAL PRIMARY KEY,
+    charge_id                       INTEGER NOT NULL REFERENCES charge(id),
+    from_status_id                  INTEGER REFERENCES charge_status(id),
+    to_status_id                    INTEGER NOT NULL REFERENCES charge_status(id),
+    reason_code                     VARCHAR(100) NOT NULL,
+    created_at                      TIMESTAMP NOT NULL DEFAULT(NOW())
+);
+
+CREATE TABLE chargeback_claim_status_event(
+    id                              SERIAL PRIMARY KEY,
+    chargeback_claim_id             INTEGER NOT NULL REFERENCES chargeback_claim(id),
+    from_status_id                  INTEGER REFERENCES chargeback_claim_status(id),
+    to_status_id                    INTEGER NOT NULL REFERENCES chargeback_claim_status(id),
+    reason_code                     VARCHAR(100) NOT NULL,
+    created_at                      TIMESTAMP NOT NULL DEFAULT(NOW())
 );
 
 -- RFC 05: Linhas de Crédito & Trava de Recebíveis
@@ -372,6 +438,19 @@ CREATE TABLE credit_contract(
     updated_at                      TIMESTAMP NOT NULL DEFAULT(NOW())
 );
 
+CREATE TABLE credit_installment_status(
+    id                              SERIAL PRIMARY KEY,
+    enumerator                      VARCHAR(50) NOT NULL UNIQUE,
+    description                     VARCHAR(255) NOT NULL,
+    created_at                      TIMESTAMP NOT NULL DEFAULT(NOW())
+);
+
+INSERT INTO credit_installment_status (enumerator, description) VALUES
+('OPEN', 'Parcela em aberto aguardando pagamento'),
+('OVERDUE', 'Parcela vencida e inadimplente'),
+('PAID', 'Parcela quitada')
+ON CONFLICT (enumerator) DO NOTHING;
+
 CREATE TABLE credit_installment(
     id                              SERIAL PRIMARY KEY,
     installment_key                 CHAR(36) NOT NULL UNIQUE,
@@ -382,10 +461,21 @@ CREATE TABLE credit_installment(
     interest_amount                 BIGINT NOT NULL,
     due_date                        DATE NOT NULL,
     paid_amount                     BIGINT NOT NULL DEFAULT 0,
-    status                          VARCHAR(50) NOT NULL DEFAULT 'OPEN',
+    status_id                       INTEGER NOT NULL REFERENCES credit_installment_status(id),
     paid_at                         TIMESTAMP,
     created_at                      TIMESTAMP NOT NULL DEFAULT(NOW())
 );
+
+CREATE TABLE receivables_anticipation_status(
+    id                              SERIAL PRIMARY KEY,
+    enumerator                      VARCHAR(50) NOT NULL UNIQUE,
+    description                     VARCHAR(255) NOT NULL,
+    created_at                      TIMESTAMP NOT NULL DEFAULT(NOW())
+);
+
+INSERT INTO receivables_anticipation_status (enumerator, description) VALUES
+('COMPLETED', 'Antecipação liquidada e desembolsada')
+ON CONFLICT (enumerator) DO NOTHING;
 
 CREATE TABLE receivables_anticipation(
     id                              SERIAL PRIMARY KEY,
@@ -395,7 +485,34 @@ CREATE TABLE receivables_anticipation(
     discount_fee                    BIGINT NOT NULL,
     net_disbursed_amount            BIGINT NOT NULL,
     charge_ids                      JSONB NOT NULL,
-    status                          VARCHAR(50) NOT NULL DEFAULT 'COMPLETED',
+    status_id                       INTEGER NOT NULL REFERENCES receivables_anticipation_status(id),
+    created_at                      TIMESTAMP NOT NULL DEFAULT(NOW())
+);
+
+CREATE TABLE credit_contract_status_event(
+    id                              SERIAL PRIMARY KEY,
+    credit_contract_id              INTEGER NOT NULL REFERENCES credit_contract(id),
+    from_status_id                  INTEGER REFERENCES credit_contract_status(id),
+    to_status_id                    INTEGER NOT NULL REFERENCES credit_contract_status(id),
+    reason_code                     VARCHAR(100) NOT NULL,
+    created_at                      TIMESTAMP NOT NULL DEFAULT(NOW())
+);
+
+CREATE TABLE credit_installment_status_event(
+    id                              SERIAL PRIMARY KEY,
+    credit_installment_id           INTEGER NOT NULL REFERENCES credit_installment(id),
+    from_status_id                  INTEGER REFERENCES credit_installment_status(id),
+    to_status_id                    INTEGER NOT NULL REFERENCES credit_installment_status(id),
+    reason_code                     VARCHAR(100) NOT NULL,
+    created_at                      TIMESTAMP NOT NULL DEFAULT(NOW())
+);
+
+CREATE TABLE receivables_anticipation_status_event(
+    id                              SERIAL PRIMARY KEY,
+    receivables_anticipation_id     INTEGER NOT NULL REFERENCES receivables_anticipation(id),
+    from_status_id                  INTEGER REFERENCES receivables_anticipation_status(id),
+    to_status_id                    INTEGER NOT NULL REFERENCES receivables_anticipation_status(id),
+    reason_code                     VARCHAR(100) NOT NULL,
     created_at                      TIMESTAMP NOT NULL DEFAULT(NOW())
 );
 

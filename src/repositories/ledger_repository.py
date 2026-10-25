@@ -8,6 +8,7 @@ from models.account import Account
 from models.ledger import (
     IdempotencyRecord,
     LedgerEntry,
+    LedgerEntryType,
     Transaction,
     TransactionStatus,
     TransactionStatusEvent,
@@ -25,6 +26,9 @@ class LedgerRepository:
 
     def get_status(self, enumerator: str) -> Optional[TransactionStatus]:
         return self.session.query(TransactionStatus).filter(TransactionStatus.enumerator == enumerator).first()
+
+    def get_entry_type(self, enumerator: str) -> Optional[LedgerEntryType]:
+        return self.session.query(LedgerEntryType).filter(LedgerEntryType.enumerator == enumerator).first()
 
     def get_idempotency(self, idempotency_key: str) -> Optional[IdempotencyRecord]:
         return (
@@ -97,7 +101,7 @@ class LedgerRepository:
         entry.entry_key = str(uuid4())
         entry.transaction_id = transaction_id
         entry.account_id = account_id
-        entry.entry_type = entry_type
+        entry.entry_type_id = self.get_entry_type(entry_type).id
         entry.amount = amount
         entry.balance_after = balance_after
         entry.description = description

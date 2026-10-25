@@ -6,7 +6,7 @@ from database import Context
 from models.customer import Customer
 from models.customer_status import CustomerStatus
 from models.customer_status_event import CustomerStatusEvent
-from models.kyc import KycAnalysis, KycRiskTier
+from models.kyc import KycAnalysis, KycCndStatus, KycRiskTier
 
 
 class KycRepository:
@@ -15,6 +15,9 @@ class KycRepository:
 
     def get_risk_tier(self, enumerator: str) -> Optional[KycRiskTier]:
         return self.session.query(KycRiskTier).filter(KycRiskTier.enumerator == enumerator).first()
+
+    def get_cnd_status(self, enumerator: str) -> Optional[KycCndStatus]:
+        return self.session.query(KycCndStatus).filter(KycCndStatus.enumerator == enumerator).first()
 
     def get_customer_status(self, enumerator: str) -> Optional[CustomerStatus]:
         return self.session.query(CustomerStatus).filter(CustomerStatus.enumerator == enumerator).first()
@@ -36,9 +39,9 @@ class KycRepository:
         analysis.customer_id = customer_id
         analysis.risk_tier_id = tier.id
         analysis.score = score
-        analysis.cnd_federal_status = cnd_federal_status
-        analysis.cnd_trabalhista_status = cnd_trabalhista_status
-        analysis.cadsan_status = cadsan_status
+        analysis.cnd_federal_status_id = self.get_cnd_status(cnd_federal_status).id
+        analysis.cnd_trabalhista_status_id = self.get_cnd_status(cnd_trabalhista_status).id
+        analysis.cadsan_status_id = self.get_cnd_status(cadsan_status).id
         analysis.flags = flags
         analysis.recommendation = recommendation
 

@@ -25,7 +25,7 @@ class CreditContractDTO:
                     "interest_amount": inst.interest_amount,
                     "due_date": inst.due_date.isoformat() if inst.due_date else None,
                     "paid_amount": inst.paid_amount,
-                    "status": inst.status,
+                    "status": inst.status.enumerator if inst.status else None,
                 }
                 for inst in contract.installments
             ],
@@ -43,6 +43,6 @@ class ReceivablesAnticipationDTO:
             "discount_fee": anticipation.discount_fee,
             "net_disbursed_amount": anticipation.net_disbursed_amount,
             "charge_ids": anticipation.charge_ids,
-            "status": anticipation.status,
+            "status": anticipation.status.enumerator if anticipation.status else None,
             "created_at": anticipation.created_at.isoformat() if anticipation.created_at else None,
         }
