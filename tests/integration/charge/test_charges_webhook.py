@@ -1,16 +1,45 @@
 from datetime import date, timedelta
+from os import environ
 import hashlib
 import hmac
 import json
 import random
+
+import requests
+
 from tests.utils import ClientRequisition, RandomGenerator
 from tests.utils import INTERNAL_TOKEN
+
+
+def _mockserver_base_url() -> str:
+    host = environ.get("SERVER_LOCALHOST", "0.0.0.0")
+    port = environ.get("MOCKSERVER_PORT", "1080")
+    return f"http://{host}:{port}"
 
 
 class TestChargesWebhook:
     """RFC 04: Meios de Pagamento, Liquidação e Webhooks HMAC (ADR-0008)."""
 
     WEBHOOK_SECRET = "qitech_bootcamp_secret_2026"
+
+    def _prime_charge_status_paid(self) -> None:
+        """Com MOCK_EXTERNAL_SERVICES=false (docker-compose.yml), o PaymentConnector
+        faz HTTP de verdade contra o MockServer. Para que a reconciliação ativa
+        (GET /payments/charges/{key}/status) enxergue a cobrança como liquidada,
+        este teste prima a expectation correspondente — do mesmo jeito que os
+        testes em tests/integration/connectors/. Sem priming, o mock responde o
+        padrão e nada é reconciliado."""
+        base_url = _mockserver_base_url()
+        expectation = {
+            "httpRequest": {"method": "GET", "path": "/payments/charges/[^/]+/status"},
+            "httpResponse": {
+                "statusCode": 200,
+                "headers": {"content-type": ["application/json"]},
+                "body": {"status": "PAID"},
+            },
+        }
+        resp = requests.put(f"{base_url}/mockserver/expectation", json=expectation, timeout=5)
+        assert resp.status_code in (200, 201), f"falha ao primar expectation: {resp.status_code} {resp.text}"
 
     def _setup_pj_account(self) -> str:
         cpf = RandomGenerator.generate_cpf()
@@ -190,6 +219,9 @@ class TestChargesWebhook:
         charge_data = resp_charge.response_json
         charge_key = charge_data["charge_key"]
         assert charge_data["status"] == "created"
+
+        # Prima o status PAID no gateway externo (MockServer) antes da conciliação.
+        self._prime_charge_status_paid()
 
         # Dispara job de reconciliação de cobranças
         resp_rec = ClientRequisition.send(
