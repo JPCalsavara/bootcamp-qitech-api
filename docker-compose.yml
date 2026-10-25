@@ -42,6 +42,18 @@ services:
       BANKSLIP_API_URL: ${BANKSLIP_API_URL:-http://localhost:8080}
       BANKSLIP_API_INTERNAL_TOKEN: ${BANKSLIP_API_INTERNAL_TOKEN:-default_token}
       BANKSLIP_API_TIMEOUT: ${BANKSLIP_API_TIMEOUT:-5}
+      # Servicos externos de verdade (KYC e gateway de pagamento). Apontam
+      # para o MockServer que sobe ao lado (servico "mockserver"), por isso
+      # NAO e localhost: o container "api" alcanca o mock pelo nome do servico
+      # na rede do compose. E com MOCK_EXTERNAL_SERVICES=false os connectors
+      # saem do modo simulado e fazem HTTP de verdade contra o mock.
+      KYC_API_URL: http://mockserver:1080/kyc
+      KYC_API_TOKEN: ${KYC_API_TOKEN:-default_token}
+      KYC_API_TIMEOUT: ${KYC_API_TIMEOUT:-5}
+      PAYMENT_GATEWAY_URL: http://mockserver:1080/payments
+      PAYMENT_GATEWAY_TOKEN: ${PAYMENT_GATEWAY_TOKEN:-payment_token}
+      PAYMENT_GATEWAY_TIMEOUT: ${PAYMENT_GATEWAY_TIMEOUT:-5}
+      MOCK_EXTERNAL_SERVICES: "false"
     volumes:
       # Monta o codigo pra dentro do container: salvou o arquivo,
       # a API recarrega sozinha (o --reload ali embaixo).
@@ -61,6 +73,26 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      mockserver:
+        condition: service_started
+
+  # Fake controlavel dos servicos externos (bureau de KYC e gateway de
+  # pagamento). O container atende na 1080; na SUA maquina ele aparece na
+  # MOCKSERVER_PORT (padrao 1080 — a 8080 ja esta ocupada neste host).
+  # Os testes de connectors falam com ele por esta porta pra primar as
+  # expectations e conferir, pela API de verificacao, o que chegou.
+  #
+  # A imagem nao tem shell nem curl, entao nao da pra escrever um
+  # healthcheck de container aqui. Quem confirma que o mock subiu e o
+  # proprio teste: a fixture espera /mockserver/status responder antes
+  # de primar as expectations. O connector so chama o mock na hora do
+  # teste, e nesse momento ele ja esta de pe.
+  mockserver:
+    image: mockserver/mockserver:5.15.0
+    ports:
+      - "${MOCKSERVER_PORT:-1080}:1080"
+    environment:
+      MOCKSERVER_LOG_LEVEL: WARN
 
   db:
     build: ./database/.
