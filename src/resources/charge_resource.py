@@ -26,6 +26,7 @@ class ChargeResource:
             status_code=http_status.HTTP_200_OK,
         )
 
+    @SchemaHandler.validate("post_webhook_payment.json")
     def on_post_webhook(self, payload: dict, request: Request) -> JSONResponse:
         signature = request.headers.get("X-Signature-SHA256") or request.headers.get("x-signature")
         timestamp = request.headers.get("X-Webhook-Timestamp") or request.headers.get("x-webhook-timestamp")
@@ -42,6 +43,7 @@ class ChargeResource:
             status_code=http_status.HTTP_200_OK,
         )
 
+    @SchemaHandler.validate("post_charge_reconciliation.json")
     def on_post_reconciliation(self, payload: dict = None) -> JSONResponse:
         controller = ChargeController()
         result = controller.reconcile_charges(payload or {})

@@ -28,7 +28,7 @@ class TestAccountStatus:
 
         resp_customer = ClientRequisition.send(
             "POST",
-            "/customers",
+            "/customer",
             payload=payload,
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -37,7 +37,7 @@ class TestAccountStatus:
 
         resp_accounts = ClientRequisition.send(
             "POST",
-            f"/customers/{customer_key}/accounts",
+            f"/customer/{customer_key}/account",
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
         accounts = resp_accounts.response_json
@@ -50,7 +50,7 @@ class TestAccountStatus:
         # 1. Bloqueia a conta voluntariamente
         resp_block = ClientRequisition.send(
             "PUT",
-            f"/accounts/{account_key}/status",
+            f"/account/{account_key}/status",
             payload={
                 "status": "blocked",
                 "reason_code": "VOLUNTARY",
@@ -62,13 +62,13 @@ class TestAccountStatus:
         assert resp_block.response_json["status"] == "blocked"
 
         # Verifica persistência da mudança
-        resp_get = ClientRequisition.send("GET", f"/accounts/{account_key}", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_get = ClientRequisition.send("GET", f"/account/{account_key}", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_get.response_json["status"] == "blocked"
 
         # 2. Desbloqueia a conta de volta para active
         resp_unblock = ClientRequisition.send(
             "PUT",
-            f"/accounts/{account_key}/status",
+            f"/account/{account_key}/status",
             payload={
                 "status": "active",
                 "reason_code": "VOLUNTARY",
@@ -85,7 +85,7 @@ class TestAccountStatus:
         # Adiciona saldo na conta
         resp_cashin = ClientRequisition.send(
             "POST",
-            "/transactions/cash-in",
+            "/cash-in",
             payload={"account_key": account_key, "amount": 10000, "description": "Aporte inicial"},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -94,7 +94,7 @@ class TestAccountStatus:
         # Tenta encerrar com saldo positivo -> deve ser rejeitado com 409 (QIT001011)
         resp_close = ClientRequisition.send(
             "PUT",
-            f"/accounts/{account_key}/status",
+            f"/account/{account_key}/status",
             payload={
                 "status": "closed",
                 "reason_code": "VOLUNTARY",
@@ -111,7 +111,7 @@ class TestAccountStatus:
         # Encerra conta com saldo zero
         resp_close = ClientRequisition.send(
             "PUT",
-            f"/accounts/{account_key}/status",
+            f"/account/{account_key}/status",
             payload={
                 "status": "closed",
                 "reason_code": "VOLUNTARY",
@@ -125,7 +125,7 @@ class TestAccountStatus:
         # Tentar alterar status a partir do estado final 'closed' deve retornar 409 (QIT001002)
         resp_reopen = ClientRequisition.send(
             "PUT",
-            f"/accounts/{account_key}/status",
+            f"/account/{account_key}/status",
             payload={
                 "status": "active",
                 "reason_code": "VOLUNTARY",
@@ -142,7 +142,7 @@ class TestAccountStatus:
         # Adiciona saldo
         ClientRequisition.send(
             "POST",
-            "/transactions/cash-in",
+            "/cash-in",
             payload={"account_key": account_key, "amount": 25000, "description": "Saldo ilícito suspeito"},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -150,7 +150,7 @@ class TestAccountStatus:
         # Encerramento compulsório por fraude / Resolução BCB 518/2025
         resp_force_close = ClientRequisition.send(
             "PUT",
-            f"/accounts/{account_key}/status",
+            f"/account/{account_key}/status",
             payload={
                 "status": "closed",
                 "reason_code": "COMPLIANCE_FRAUD",
@@ -168,7 +168,7 @@ class TestAccountStatus:
         # 1. Aporte de R$ 500,00
         resp_cashin = ClientRequisition.send(
             "POST",
-            "/transactions/cash-in",
+            "/cash-in",
             payload={"account_key": src_key, "amount": 50000, "description": "Saldo inicial"},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -177,7 +177,7 @@ class TestAccountStatus:
         # 2. Aplica bloqueio cautelar MED de R$ 200,00 (Resolução BCB 103/2021)
         resp_block = ClientRequisition.send(
             "PUT",
-            f"/accounts/{src_key}/blocked-balance",
+            f"/account/{src_key}/blocked-balance",
             payload={
                 "operation": "BLOCK",
                 "amount": 20000,
@@ -194,7 +194,7 @@ class TestAccountStatus:
         # 3. Tenta transferir R$ 350,00 (saldo disponível é 300,00) -> deve falhar com 422
         resp_tx_fail = ClientRequisition.send(
             "POST",
-            "/transactions/transfers",
+            "/transfer",
             payload={
                 "source_account_key": src_key,
                 "destination_account_key": dst_key,
@@ -209,7 +209,7 @@ class TestAccountStatus:
         # 4. Desbloqueia R$ 200,00
         resp_unblock = ClientRequisition.send(
             "PUT",
-            f"/accounts/{src_key}/blocked-balance",
+            f"/account/{src_key}/blocked-balance",
             payload={
                 "operation": "UNBLOCK",
                 "amount": 20000,
@@ -224,7 +224,7 @@ class TestAccountStatus:
         # 5. Transferência de R$ 350,00 agora é permitida
         resp_tx_ok = ClientRequisition.send(
             "POST",
-            "/transactions/transfers",
+            "/transfer",
             payload={
                 "source_account_key": src_key,
                 "destination_account_key": dst_key,

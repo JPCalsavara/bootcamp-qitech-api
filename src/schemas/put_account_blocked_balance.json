@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PutAccountBlockedBalance",
+  "type": "object",
+  "properties": {
+    "operation": { "type": "string", "enum": ["BLOCK", "UNBLOCK"] },
+    "amount": { "type": "integer", "minimum": 1 },
+    "reason": { "type": "string" }
+  },
+  "required": ["operation", "amount"],
+  "additionalProperties": false
+}

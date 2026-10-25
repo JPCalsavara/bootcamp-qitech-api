@@ -30,12 +30,12 @@ class TestChargesWebhook:
             "transaction_pin": "1234",
         }
 
-        resp = ClientRequisition.send("POST", "/customers", payload=payload, headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp = ClientRequisition.send("POST", "/customer", payload=payload, headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         customer_key = resp.response_json["customer_key"]
 
         resp_accounts = ClientRequisition.send(
             "POST",
-            f"/customers/{customer_key}/accounts",
+            f"/customer/{customer_key}/account",
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
         accounts = resp_accounts.response_json
@@ -49,7 +49,7 @@ class TestChargesWebhook:
         # 1. PIX
         resp_pix = ClientRequisition.send(
             "POST",
-            f"/accounts/{pj_key}/charges",
+            f"/account/{pj_key}/charge",
             payload={"method": "PIX", "amount": 10000, "due_date": due_date},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -63,7 +63,7 @@ class TestChargesWebhook:
         # 2. BOLETO
         resp_boleto = ClientRequisition.send(
             "POST",
-            f"/accounts/{pj_key}/charges",
+            f"/account/{pj_key}/charge",
             payload={"method": "BOLETO", "amount": 25000, "due_date": due_date},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -77,7 +77,7 @@ class TestChargesWebhook:
         # 3. CREDIT_CARD_LINK
         resp_link = ClientRequisition.send(
             "POST",
-            f"/accounts/{pj_key}/charges",
+            f"/account/{pj_key}/charge",
             payload={"method": "CREDIT_CARD_LINK", "amount": 50000, "due_date": due_date},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -87,10 +87,10 @@ class TestChargesWebhook:
         assert link_data["fee_amount"] == int(50000 * 0.0299)
         assert "payment_url" in link_data and link_data["payment_url"] is not None
 
-        # 4. Consulta cobrança via GET /charges/{charge_key}
+        # 4. Consulta cobrança via GET /charge/{charge_key}
         resp_get = ClientRequisition.send(
             "GET",
-            f"/charges/{pix_data['charge_key']}",
+            f"/charge/{pix_data['charge_key']}",
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
         assert resp_get.response_status == 200
@@ -103,7 +103,7 @@ class TestChargesWebhook:
         # Cria cobrança PIX de R$ 200,00 (20000 centavos)
         resp_charge = ClientRequisition.send(
             "POST",
-            f"/accounts/{pj_key}/charges",
+            f"/account/{pj_key}/charge",
             payload={"method": "PIX", "amount": 20000, "due_date": due_date},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -121,7 +121,7 @@ class TestChargesWebhook:
 
         resp_wh = ClientRequisition.send(
             "POST",
-            "/webhooks/payments",
+            "/webhook/payment",
             payload=webhook_payload,
             headers={
                 "INTERNAL-TOKEN": INTERNAL_TOKEN,
@@ -132,15 +132,15 @@ class TestChargesWebhook:
         assert resp_wh.response_json["status"] == "processed"
 
         # Verifica cobrança marcada como 'paid'
-        resp_get = ClientRequisition.send("GET", f"/charges/{charge_key}", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_get = ClientRequisition.send("GET", f"/charge/{charge_key}", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_get.response_json["status"] == "paid"
 
         # Verifica saldo da conta PJ: bruto 20000 - taxa 90 = 19910 centavos
-        resp_bal = ClientRequisition.send("GET", f"/accounts/{pj_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_bal = ClientRequisition.send("GET", f"/account/{pj_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_bal.response_json["balance"] == 19910
 
         # Verifica extrato: crédito bruto + débito de tarifa (ADR-0008)
-        resp_stmt = ClientRequisition.send("GET", f"/accounts/{pj_key}/statement", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_stmt = ClientRequisition.send("GET", f"/account/{pj_key}/statement", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         entries = resp_stmt.response_json
         assert any(e["entry_type"] == "CREDIT" and e["amount"] == 20000 for e in entries)
         assert any(e["entry_type"] == "DEBIT" and e["amount"] == 90 for e in entries)
@@ -151,7 +151,7 @@ class TestChargesWebhook:
 
         resp_charge = ClientRequisition.send(
             "POST",
-            f"/accounts/{pj_key}/charges",
+            f"/account/{pj_key}/charge",
             payload={"method": "PIX", "amount": 10000, "due_date": due_date},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -165,7 +165,7 @@ class TestChargesWebhook:
 
         resp = ClientRequisition.send(
             "POST",
-            "/webhooks/payments",
+            "/webhook/payment",
             payload=webhook_payload,
             headers={
                 "INTERNAL-TOKEN": INTERNAL_TOKEN,
@@ -182,7 +182,7 @@ class TestChargesWebhook:
         # Cria cobrança de Boleto (R$ 300,00) - que aguarda reconciliação ativa (polling de saída)
         resp_charge = ClientRequisition.send(
             "POST",
-            f"/accounts/{pj_key}/charges",
+            f"/account/{pj_key}/charge",
             payload={"method": "BOLETO", "amount": 30000, "due_date": due_date},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -194,7 +194,7 @@ class TestChargesWebhook:
         # Dispara job de reconciliação de cobranças
         resp_rec = ClientRequisition.send(
             "POST",
-            "/charges/reconciliation",
+            "/charge/reconciliation",
             payload={"charge_keys": [charge_key]},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -204,17 +204,17 @@ class TestChargesWebhook:
         assert rec_data["settled_amount"] >= 30000
 
         # Verifica cobrança marcada como 'paid'
-        resp_get = ClientRequisition.send("GET", f"/charges/{charge_key}", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_get = ClientRequisition.send("GET", f"/charge/{charge_key}", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_get.response_json["status"] == "paid"
 
         # Verifica saldo da conta PJ: bruto 30000 - taxa boleto 250 = 29750
-        resp_bal = ClientRequisition.send("GET", f"/accounts/{pj_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_bal = ClientRequisition.send("GET", f"/account/{pj_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_bal.response_json["balance"] == 29750
 
         # Idempotência: rodar a reconciliação novamente não duplica liquidação
         resp_rec2 = ClientRequisition.send(
             "POST",
-            "/charges/reconciliation",
+            "/charge/reconciliation",
             payload={"charge_keys": [charge_key]},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -222,7 +222,7 @@ class TestChargesWebhook:
         assert resp_rec2.response_json["reconciled_count"] == 0
 
         # Saldo permanece inalterado
-        resp_bal2 = ClientRequisition.send("GET", f"/accounts/{pj_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_bal2 = ClientRequisition.send("GET", f"/account/{pj_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_bal2.response_json["balance"] == 29750
 
     def test_charge_idempotency_prevents_duplicate_charge(self) -> None:
@@ -239,7 +239,7 @@ class TestChargesWebhook:
         # 1ª chamada
         resp1 = ClientRequisition.send(
             "POST",
-            f"/accounts/{pj_key}/charges",
+            f"/account/{pj_key}/charge",
             payload=payload,
             headers=headers,
         )
@@ -249,7 +249,7 @@ class TestChargesWebhook:
         # 2ª chamada com mesma chave de idempotência
         resp2 = ClientRequisition.send(
             "POST",
-            f"/accounts/{pj_key}/charges",
+            f"/account/{pj_key}/charge",
             payload=payload,
             headers=headers,
         )

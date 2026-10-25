@@ -62,7 +62,7 @@ class TestFullMeiLifecycle:
             "transaction_pin": "1234",
         }
 
-        status_code, customer_data = post("/customers", payload=customer_payload)
+        status_code, customer_data = post("/customer", payload=customer_payload)
         assert status_code == 202
         customer_key = customer_data["customer_key"]
         assert customer_data["status"] == "created"
@@ -76,7 +76,7 @@ class TestFullMeiLifecycle:
             "cadsan_status": "REGULAR",
             "flags": {"pep": False, "sanctions": False},
         }
-        status_code, kyc_data = post(f"/customers/{customer_key}/kyc/analysis", payload=kyc_payload)
+        status_code, kyc_data = post(f"/customer/{customer_key}/kyc/analysis", payload=kyc_payload)
         assert status_code == 200
         assert kyc_data["customer_status"] == "active"
         assert kyc_data["recommendation"] == "APPROVE"
@@ -84,7 +84,7 @@ class TestFullMeiLifecycle:
         # =========================================================================
         # 2. Provisionamento de Contas Gêmeas PF e PJ (RFC 01)
         # =========================================================================
-        status_code, accounts = post(f"/customers/{customer_key}/accounts")
+        status_code, accounts = post(f"/customer/{customer_key}/account")
         assert status_code == 201
         assert len(accounts) == 2
 
@@ -100,7 +100,7 @@ class TestFullMeiLifecycle:
         # =========================================================================
         # Cria caixinha de reserva prioritária do DAS-MEI
         status_code, das_pocket = post(
-            f"/accounts/{pj_key}/pockets",
+            f"/account/{pj_key}/pocket",
             payload={
                 "type": "DAS_IMPOSTOS",
                 "name": "Reserva Mensal DAS",
@@ -129,7 +129,7 @@ class TestFullMeiLifecycle:
         # =========================================================================
         due_date = (date.today() + timedelta(days=5)).isoformat()
         status_code, charge_data = post(
-            f"/accounts/{pj_key}/charges",
+            f"/account/{pj_key}/charge",
             payload={
                 "method": "PIX",
                 "amount": 150000,  # R$ 1.500,00
@@ -152,19 +152,19 @@ class TestFullMeiLifecycle:
         signature = hmac.new(self.WEBHOOK_SECRET.encode("utf-8"), payload_bytes, hashlib.sha256).hexdigest()
 
         status_code, wh_res = post(
-            "/webhooks/payments",
+            "/webhook/payment",
             payload=webhook_payload,
             headers={"X-Signature-SHA256": signature},
         )
         assert status_code == 200
 
         # Verifica saldo da conta PJ: 150000 - 90 = 149910
-        status_code, bal_data = get(f"/accounts/{pj_key}/balance")
+        status_code, bal_data = get(f"/account/{pj_key}/balance")
         assert status_code == 200
         assert bal_data["balance"] == 149910
 
         # Verifica Revenue Tracker MEI acumulado
-        status_code, tracker = get(f"/customers/{customer_key}/revenue-tracker")
+        status_code, tracker = get(f"/customer/{customer_key}/revenue-tracker")
         assert status_code == 200
         assert tracker["accumulated_revenue"] == 150000
 
@@ -172,7 +172,7 @@ class TestFullMeiLifecycle:
         # 5. Contratação de Crédito CCB com Trava de Recebíveis (RFC 05)
         # =========================================================================
         status_code, credit_data = post(
-            "/credit/contracts",
+            "/credit/contract",
             payload={
                 "customer_key": customer_key,
                 "account_pj_key": pj_key,
@@ -189,13 +189,13 @@ class TestFullMeiLifecycle:
         assert credit_data["pocket_key"] is not None
 
         # Saldo PJ agora inclui os R$ 10.000,00 desembolsados: 149910 + 1000000 = 1149910
-        status_code, bal_data = get(f"/accounts/{pj_key}/balance")
+        status_code, bal_data = get(f"/account/{pj_key}/balance")
         assert status_code == 200
         assert bal_data["balance"] == 1149910
 
         # Nova cobrança PIX liquidada: deve reter 10% para a caixinha de trava de crédito!
         status_code, charge_data2 = post(
-            f"/accounts/{pj_key}/charges",
+            f"/account/{pj_key}/charge",
             payload={
                 "method": "PIX",
                 "amount": 200000,  # R$ 2.000,00
@@ -211,7 +211,7 @@ class TestFullMeiLifecycle:
         ).hexdigest()
 
         status_code, wh_res2 = post(
-            "/webhooks/payments",
+            "/webhook/payment",
             payload=wh_payload2,
             headers={"X-Signature-SHA256": sig2},
         )
@@ -231,7 +231,7 @@ class TestFullMeiLifecycle:
         assert yield_data["accrual_event"]["net_yield"] > 0
 
         # Posição de CDB
-        status_code, pos = get(f"/accounts/{pj_key}/yield-position")
+        status_code, pos = get(f"/account/{pj_key}/yield-position")
         assert status_code == 200
         assert pos["accumulated_yield"] > 0
 
@@ -240,7 +240,7 @@ class TestFullMeiLifecycle:
         # =========================================================================
         # Tentativa de transferir PJ -> PF sem a caixinha do DAS preenchida deve falhar (422)
         status_code, fail_data = post(
-            "/transactions/transfers",
+            "/transfer",
             payload={
                 "source_account_key": pj_key,
                 "destination_account_key": pf_key,
@@ -254,7 +254,7 @@ class TestFullMeiLifecycle:
 
         # Preenche a caixinha do DAS via endpoint de depósito na caixinha
         status_code, das_funded = post(
-            f"/accounts/{pj_key}/pockets/{das_pocket['pocket_key']}/deposit",
+            f"/account/{pj_key}/pocket/{das_pocket['pocket_key']}/deposit",
             payload={"amount": 7500},
         )
         assert status_code == 200
@@ -262,7 +262,7 @@ class TestFullMeiLifecycle:
 
         # Agora a transferência PJ -> PF deve ser aprovada!
         status_code, transfer_data = post(
-            "/transactions/transfers",
+            "/transfer",
             payload={
                 "source_account_key": pj_key,
                 "destination_account_key": pf_key,
@@ -275,18 +275,18 @@ class TestFullMeiLifecycle:
         assert transfer_data["status"] == "completed"
 
         # Saldo da conta PF deve ser exatamente R$ 500,00 (50000 centavos)
-        status_code, pf_bal = get(f"/accounts/{pf_key}/balance")
+        status_code, pf_bal = get(f"/account/{pf_key}/balance")
         assert status_code == 200
         assert pf_bal["balance"] == 50000
 
         # =========================================================================
         # 8. Auditoria de Partidas Dobradas no Ledger (RFC 02, ADR-0004)
         # =========================================================================
-        status_code, entries_pj = get(f"/accounts/{pj_key}/statement")
+        status_code, entries_pj = get(f"/account/{pj_key}/statement")
         assert status_code == 200
         assert len(entries_pj) >= 4
 
-        status_code, entries_pf = get(f"/accounts/{pf_key}/statement")
+        status_code, entries_pf = get(f"/account/{pf_key}/statement")
         assert status_code == 200
         assert len(entries_pf) == 1
         assert entries_pf[0]["entry_type"] == "CREDIT"

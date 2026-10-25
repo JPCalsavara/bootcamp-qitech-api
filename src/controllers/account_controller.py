@@ -37,11 +37,11 @@ class AccountController(BaseController):
             raise NotFoundAccount(account_key)
         return AccountDTO.obj_to_dict(account)
 
-    def get_by_customer(self, customer_key: str) -> List[dict]:
+    def get_by_customer(self, customer_key: str, limit: int = 50, offset: int = 0) -> List[dict]:
         customer = self.customer_repository.get_by_key(customer_key)
         if not customer:
             raise NotFoundCustomer(customer_key)
-        accounts = self.account_repository.get_by_customer_id(customer.id)
+        accounts = self.account_repository.get_by_customer_id(customer.id, limit=limit, offset=offset)
         return [AccountDTO.obj_to_dict(acc) for acc in accounts]
 
     def get_balance(self, account_key: str) -> dict:

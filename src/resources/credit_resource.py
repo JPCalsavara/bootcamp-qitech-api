@@ -45,6 +45,7 @@ class CreditResource:
             status_code=http_status.HTTP_200_OK,
         )
 
+    @SchemaHandler.validate("post_settle_due.json")
     def on_post_settle_due(self, payload: dict = None) -> JSONResponse:
         controller = CreditController()
         result = controller.settle_due_installments(payload or {})

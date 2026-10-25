@@ -33,14 +33,14 @@ class TestE2ECrossPatrimonyAndSweep:
         }
 
         # 1. Onboarding
-        resp_cust = ClientRequisition.send("POST", "/customers", payload=payload, headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_cust = ClientRequisition.send("POST", "/customer", payload=payload, headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_cust.response_status == 202
         customer_key = resp_cust.response_json["customer_key"]
 
         # 2. Aprovação KYC
         resp_kyc = ClientRequisition.send(
             "POST",
-            f"/customers/{customer_key}/kyc/analysis",
+            f"/customer/{customer_key}/kyc/analysis",
             payload={"score": 820, "risk_tier": "LOW", "flags": {"pep": False, "sanctions": False}},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -49,7 +49,7 @@ class TestE2ECrossPatrimonyAndSweep:
         # 3. Provisionamento de contas gêmeas PF/PJ
         resp_acc = ClientRequisition.send(
             "POST",
-            f"/customers/{customer_key}/accounts",
+            f"/customer/{customer_key}/account",
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
         assert resp_acc.response_status == 201
@@ -72,9 +72,9 @@ class TestE2ECrossPatrimonyAndSweep:
             "password": "SenhaForte@2026",
             "transaction_pin": "1234",
         }
-        resp = ClientRequisition.send("POST", "/customers", payload=payload, headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp = ClientRequisition.send("POST", "/customer", payload=payload, headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         cust_key = resp.response_json["customer_key"]
-        resp_acc = ClientRequisition.send("POST", f"/customers/{cust_key}/accounts", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_acc = ClientRequisition.send("POST", f"/customer/{cust_key}/account", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         pj = next(a for a in resp_acc.response_json if a["type"] == "PJ")
         return pj["account_key"]
 
@@ -88,7 +88,7 @@ class TestE2ECrossPatrimonyAndSweep:
         # Aporte inicial na PJ: R$ 10.000,00 (1.000.000 centavos)
         ClientRequisition.send(
             "POST",
-            "/transactions/cash-in",
+            "/cash-in",
             payload={"account_key": pj_key, "amount": 1000000, "description": "Capital de Giro Inicial"},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -104,13 +104,13 @@ class TestE2ECrossPatrimonyAndSweep:
         assert resp_invest.response_json["principal_amount"] == 800000
 
         # Saldo livre agora é R$ 2.000,00 (200.000 centavos)
-        resp_bal = ClientRequisition.send("GET", f"/accounts/{pj_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_bal = ClientRequisition.send("GET", f"/account/{pj_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_bal.response_json["balance"] == 200000
 
         # Reserva pessoal do empreendedor na conta PF: R$ 4.000,00 (400.000 centavos)
         ClientRequisition.send(
             "POST",
-            "/transactions/cash-in",
+            "/cash-in",
             payload={"account_key": pf_key, "amount": 400000, "description": "Reserva Pessoal PF"},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -120,7 +120,7 @@ class TestE2ECrossPatrimonyAndSweep:
         # =========================================================================
         resp_credit = ClientRequisition.send(
             "POST",
-            "/credit/contracts",
+            "/credit/contract",
             payload={
                 "customer_key": customer_key,
                 "account_pj_key": pj_key,
@@ -139,7 +139,7 @@ class TestE2ECrossPatrimonyAndSweep:
         inst_amount = inst_1["amount"]
 
         # Saldo livre na PJ agora: 200.000 + 600.000 = 800.000 centavos (R$ 8.000,00)
-        resp_bal = ClientRequisition.send("GET", f"/accounts/{pj_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_bal = ClientRequisition.send("GET", f"/account/{pj_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_bal.response_json["balance"] == 800000
 
         # =========================================================================
@@ -150,7 +150,7 @@ class TestE2ECrossPatrimonyAndSweep:
         # O Cash Sweep deve resgatar R$ 2.000,00 do CDB (que tem R$ 8.000,00) e liquidar os R$ 10.000,00!
         resp_sweep_tx = ClientRequisition.send(
             "POST",
-            "/transactions/transfers",
+            "/transfer",
             payload={
                 "source_account_key": pj_key,
                 "destination_account_key": supplier_key,
@@ -163,19 +163,19 @@ class TestE2ECrossPatrimonyAndSweep:
         assert resp_sweep_tx.response_status == 200
 
         # Saldo livre na PJ após o pagamento: 800.000 + 200.000 (resgate) - 1.000.000 = 0
-        resp_bal = ClientRequisition.send("GET", f"/accounts/{pj_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_bal = ClientRequisition.send("GET", f"/account/{pj_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_bal.response_json["balance"] == 0
 
         # Posição de CDB após o resgate: 800.000 - 200.000 = 600.000 centavos (R$ 6.000,00)
-        resp_pos = ClientRequisition.send("GET", f"/accounts/{pj_key}/yield-position", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_pos = ClientRequisition.send("GET", f"/account/{pj_key}/yield-position", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_pos.response_json["principal_amount"] == 600000
 
         # Fornecedor recebeu o valor integral
-        resp_supp_bal = ClientRequisition.send("GET", f"/accounts/{supplier_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_supp_bal = ClientRequisition.send("GET", f"/account/{supplier_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_supp_bal.response_json["balance"] == 1000000
 
         # Extrato PJ audita as partidas: crédito de Cash Sweep e débito de transferência
-        resp_stmt = ClientRequisition.send("GET", f"/accounts/{pj_key}/statement", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_stmt = ClientRequisition.send("GET", f"/account/{pj_key}/statement", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         entries = resp_stmt.response_json
         assert any(e["entry_type"] == "CREDIT" and e["amount"] == 200000 and "Cash Sweep" in e["description"] for e in entries)
         assert any(e["entry_type"] == "DEBIT" and e["amount"] == 1000000 for e in entries)
@@ -196,7 +196,7 @@ class TestE2ECrossPatrimonyAndSweep:
         assert resp_grace.response_status == 200
         assert resp_grace.response_json["settled_installments"] == 0
         # Conta PF não é tocada durante a carência
-        resp_pf_bal = ClientRequisition.send("GET", f"/accounts/{pf_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_pf_bal = ClientRequisition.send("GET", f"/account/{pf_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_pf_bal.response_json["balance"] == 400000
 
         # 2. Execução do job após estourar a carência (atraso de 10 dias):
@@ -212,15 +212,15 @@ class TestE2ECrossPatrimonyAndSweep:
         assert resp_cross.response_json["total_settled_amount"] == inst_amount
 
         # Parcela 1 agora está totalmente PAGA
-        resp_contract = ClientRequisition.send("GET", f"/credit/contracts/{contract_key}", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_contract = ClientRequisition.send("GET", f"/credit/contract/{contract_key}", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_contract.response_json["installments"][0]["status"] == "PAID"
         assert resp_contract.response_json["installments"][0]["paid_amount"] == inst_amount
 
         # Conta PF do titular arcou com a obrigação (Art. 368 CC)
-        resp_pf_bal2 = ClientRequisition.send("GET", f"/accounts/{pf_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_pf_bal2 = ClientRequisition.send("GET", f"/account/{pf_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_pf_bal2.response_json["balance"] == 400000 - inst_amount
 
         # Extrato PF registra a liquidação de garantia cruzada
-        resp_pf_stmt = ClientRequisition.send("GET", f"/accounts/{pf_key}/statement", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_pf_stmt = ClientRequisition.send("GET", f"/account/{pf_key}/statement", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert any(e["entry_type"] == "DEBIT" and e["amount"] == inst_amount and "Garantia Cruzada" in e["description"]
                    for e in resp_pf_stmt.response_json)

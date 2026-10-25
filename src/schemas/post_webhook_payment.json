@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PostWebhookPayment",
+  "type": "object",
+  "properties": {
+    "event": { "type": "string" },
+    "charge_key": { "type": "string" },
+    "amount": { "type": "integer" }
+  },
+  "required": ["charge_key"],
+  "additionalProperties": false
+}

@@ -5,7 +5,7 @@ from tests.utils import INTERNAL_TOKEN
 
 
 class TestStatementPagination:
-    """ESC-01: GET /accounts/{account_key}/statement honra limit/offset da query string."""
+    """ESC-01: GET /account/{account_key}/statement honra limit/offset da query string."""
 
     def _setup_account(self):
         cpf = RandomGenerator.generate_cpf()
@@ -26,14 +26,14 @@ class TestStatementPagination:
         }
 
         resp = ClientRequisition.send(
-            "POST", "/customers", payload=payload, headers={"INTERNAL-TOKEN": INTERNAL_TOKEN}
+            "POST", "/customer", payload=payload, headers={"INTERNAL-TOKEN": INTERNAL_TOKEN}
         )
         assert resp.response_status == 202
         customer_key = resp.response_json["customer_key"]
 
         resp_accounts = ClientRequisition.send(
             "POST",
-            f"/customers/{customer_key}/accounts",
+            f"/customer/{customer_key}/account",
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
         accounts = resp_accounts.response_json
@@ -47,7 +47,7 @@ class TestStatementPagination:
         for i in range(5):
             resp_cash_in = ClientRequisition.send(
                 "POST",
-                "/transactions/cash-in",
+                "/cash-in",
                 payload={"account_key": account_key, "amount": 1000 + i, "description": f"Aporte {i}"},
                 headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
             )
@@ -55,13 +55,13 @@ class TestStatementPagination:
 
         resp_page_1 = ClientRequisition.send(
             "GET",
-            f"/accounts/{account_key}/statement",
+            f"/account/{account_key}/statement",
             query_params={"limit": 2, "offset": 0},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
         resp_page_2 = ClientRequisition.send(
             "GET",
-            f"/accounts/{account_key}/statement",
+            f"/account/{account_key}/statement",
             query_params={"limit": 2, "offset": 2},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -83,7 +83,7 @@ class TestStatementPagination:
 
         resp = ClientRequisition.send(
             "GET",
-            f"/accounts/{account_key}/statement",
+            f"/account/{account_key}/statement",
             query_params={"limit": -1},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -95,7 +95,7 @@ class TestStatementPagination:
 
         resp = ClientRequisition.send(
             "GET",
-            f"/accounts/{account_key}/statement",
+            f"/account/{account_key}/statement",
             query_params={"offset": "abc"},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )

@@ -53,47 +53,51 @@ def create_app() -> FastAPI:
     application.add_api_route("/health_check", health_check_resource.on_get_health_check, methods=["GET"])
 
     # RFC 01 & RFC 03: Customer & Onboarding
-    application.add_api_route("/customers", customer_resource.on_post, methods=["POST"])
-    application.add_api_route("/customers/{customer_key}", customer_resource.on_get_by_key, methods=["GET"])
-    application.add_api_route("/customers/{customer_key}/kyc/analysis", kyc_resource.on_post_analysis, methods=["POST"])
+    application.add_api_route("/customer", customer_resource.on_post, methods=["POST"])
+    application.add_api_route("/customer/{customer_key}", customer_resource.on_get_by_key, methods=["GET"])
+    application.add_api_route("/customer/{customer_key}/kyc/analysis", kyc_resource.on_post_analysis, methods=["POST"])
 
     # RFC 01: Twin Accounts (PF & PJ) & Account Lifecycle
-    application.add_api_route("/customers/{customer_key}/accounts", account_resource.on_post_twin_accounts, methods=["POST"])
-    application.add_api_route("/customers/{customer_key}/accounts", account_resource.on_get_by_customer, methods=["GET"])
-    application.add_api_route("/accounts/{account_key}", account_resource.on_get_by_key, methods=["GET"])
-    application.add_api_route("/accounts/{account_key}/balance", account_resource.on_get_balance, methods=["GET"])
-    application.add_api_route("/accounts/{account_key}/status", account_resource.on_put_status, methods=["PUT"])
-    application.add_api_route("/accounts/{account_key}/blocked-balance", account_resource.on_put_blocked_balance, methods=["PUT"])
+    application.add_api_route("/customer/{customer_key}/account", account_resource.on_post_twin_accounts, methods=["POST"])
+    # List GET keeps the plural path and is paginated (limit/offset).
+    application.add_api_route("/customer/{customer_key}/accounts", account_resource.on_get_by_customer, methods=["GET"])
+    application.add_api_route("/account/{account_key}", account_resource.on_get_by_key, methods=["GET"])
+    application.add_api_route("/account/{account_key}/balance", account_resource.on_get_balance, methods=["GET"])
+    application.add_api_route("/account/{account_key}/status", account_resource.on_put_status, methods=["PUT"])
+    application.add_api_route("/account/{account_key}/blocked-balance", account_resource.on_put_blocked_balance, methods=["PUT"])
 
     # RFC 02: Ledger, Transfers, Cash-in & Statements
-    application.add_api_route("/transactions/transfers", transaction_resource.on_post_transfer, methods=["POST"])
-    application.add_api_route("/transactions/cash-in", transaction_resource.on_post_cash_in, methods=["POST"])
-    application.add_api_route("/accounts/{account_key}/statement", transaction_resource.on_get_statement, methods=["GET"])
+    application.add_api_route("/transfer", transaction_resource.on_post_transfer, methods=["POST"])
+    application.add_api_route("/cash-in", transaction_resource.on_post_cash_in, methods=["POST"])
+    application.add_api_route("/account/{account_key}/statement", transaction_resource.on_get_statement, methods=["GET"])
 
     # RFC 04: Meios de Pagamento & Webhook HMAC
-    application.add_api_route("/accounts/{account_key}/charges", charge_resource.on_post_charge, methods=["POST"])
-    application.add_api_route("/charges/{charge_key}", charge_resource.on_get_charge, methods=["GET"])
-    application.add_api_route("/charges/reconciliation", charge_resource.on_post_reconciliation, methods=["POST"])
-    application.add_api_route("/webhooks/payments", charge_resource.on_post_webhook, methods=["POST"])
+    application.add_api_route("/account/{account_key}/charge", charge_resource.on_post_charge, methods=["POST"])
+    application.add_api_route("/charge/{charge_key}", charge_resource.on_get_charge, methods=["GET"])
+    application.add_api_route("/charge/reconciliation", charge_resource.on_post_reconciliation, methods=["POST"])
+    application.add_api_route("/webhook/payment", charge_resource.on_post_webhook, methods=["POST"])
 
     # RFC 05: Linhas de Crédito & Trava de Recebíveis
-    application.add_api_route("/credit/contracts", credit_resource.on_post_contract, methods=["POST"])
-    application.add_api_route("/credit/contracts/{contract_key}", credit_resource.on_get_contract, methods=["GET"])
-    application.add_api_route("/credit/anticipations", credit_resource.on_post_anticipation, methods=["POST"])
+    application.add_api_route("/credit/contract", credit_resource.on_post_contract, methods=["POST"])
+    application.add_api_route("/credit/contract/{contract_key}", credit_resource.on_get_contract, methods=["GET"])
+    application.add_api_route("/credit/anticipation", credit_resource.on_post_anticipation, methods=["POST"])
+    # Exempt action route (not a CRUD resource): left unchanged.
     application.add_api_route("/credit/cross-guarantee/execute", credit_resource.on_post_cross_guarantee, methods=["POST"])
-    application.add_api_route("/credit/installments/settle-due", credit_resource.on_post_settle_due, methods=["POST"])
+    application.add_api_route("/credit/installment/settle-due", credit_resource.on_post_settle_due, methods=["POST"])
 
     # RFC 06: Tesouraria & Fluxo Remunerado (CDB 100% CDI)
     application.add_api_route("/treasury/accrue-yield", yield_resource.on_post_accrue, methods=["POST"])
     application.add_api_route("/treasury/invest", yield_resource.on_post_invest, methods=["POST"])
-    application.add_api_route("/accounts/{account_key}/yield-position", yield_resource.on_get_position, methods=["GET"])
+    application.add_api_route("/account/{account_key}/yield-position", yield_resource.on_get_position, methods=["GET"])
 
     # RFC 07: Governança Patrimonial & Pockets (Caixinhas)
-    application.add_api_route("/accounts/{account_key}/pockets", pocket_resource.on_post_pocket, methods=["POST"])
-    application.add_api_route("/accounts/{account_key}/pockets", pocket_resource.on_get_pockets, methods=["GET"])
-    application.add_api_route("/accounts/{account_key}/pockets/{pocket_key}/deposit", pocket_resource.on_post_deposit, methods=["POST"])
+    application.add_api_route("/account/{account_key}/pocket", pocket_resource.on_post_pocket, methods=["POST"])
+    # List GET keeps the plural path and is paginated (limit/offset).
+    application.add_api_route("/account/{account_key}/pockets", pocket_resource.on_get_pockets, methods=["GET"])
+    application.add_api_route("/account/{account_key}/pocket/{pocket_key}/deposit", pocket_resource.on_post_deposit, methods=["POST"])
+    # Exempt action route (not a CRUD resource): left unchanged.
     application.add_api_route("/governance/transfer-policies", pocket_resource.on_post_transfer_policy, methods=["POST"])
-    application.add_api_route("/customers/{customer_key}/revenue-tracker", pocket_resource.on_get_revenue_tracker, methods=["GET"])
+    application.add_api_route("/customer/{customer_key}/revenue-tracker", pocket_resource.on_get_revenue_tracker, methods=["GET"])
 
     register_error_handlers(application)
 

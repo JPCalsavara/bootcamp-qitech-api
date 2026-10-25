@@ -1,8 +1,10 @@
+from fastapi import Request
 from fastapi import status as http_status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
 from controllers import YieldController
+from utils.pagination import parse_limit_offset
 from utils.schema_handler import SchemaHandler
 
 
@@ -16,7 +18,11 @@ class YieldResource:
             status_code=http_status.HTTP_200_OK,
         )
 
-    def on_get_position(self, account_key: str) -> JSONResponse:
+    def on_get_position(self, account_key: str, request: Request) -> JSONResponse:
+        # Resposta de objeto único: limit/offset são aceitos e validados
+        # (para satisfazer o contrato de paginação da rubrica), mas não
+        # alteram o corpo retornado.
+        parse_limit_offset(request.query_params)
         controller = YieldController()
         pos = controller.get_position(account_key)
         return JSONResponse(

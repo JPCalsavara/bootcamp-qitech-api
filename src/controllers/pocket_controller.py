@@ -31,12 +31,12 @@ class PocketController(BaseController):
         self.context.db_session.commit()
         return PocketDTO.obj_to_dict(pocket)
 
-    def get_pockets(self, account_key: str) -> List[dict]:
+    def get_pockets(self, account_key: str, limit: int = 50, offset: int = 0) -> List[dict]:
         account = self.account_repository.get_by_key(account_key)
         if not account:
             raise NotFoundAccount(account_key)
 
-        pockets = self.pocket_repository.get_pockets_by_account_id(account.id)
+        pockets = self.pocket_repository.get_pockets_by_account_id(account.id, limit=limit, offset=offset)
         return [PocketDTO.obj_to_dict(p) for p in pockets]
 
     def create_transfer_policy(self, payload: dict) -> dict:

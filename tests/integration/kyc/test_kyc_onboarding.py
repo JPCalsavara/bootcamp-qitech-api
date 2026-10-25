@@ -26,7 +26,7 @@ class TestKycOnboarding:
 
         resp = ClientRequisition.send(
             "POST",
-            "/customers",
+            "/customer",
             payload=payload,
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -46,7 +46,7 @@ class TestKycOnboarding:
         }
         resp = ClientRequisition.send(
             "POST",
-            f"/customers/{customer_key}/kyc/analysis",
+            f"/customer/{customer_key}/kyc/analysis",
             payload=payload,
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -55,10 +55,10 @@ class TestKycOnboarding:
         assert data["customer_status"] == "active"
         assert data["recommendation"] == "APPROVE"
 
-        # Confirma via GET /customers/{customer_key}
+        # Confirma via GET /customer/{customer_key}
         resp_get = ClientRequisition.send(
             "GET",
-            f"/customers/{customer_key}",
+            f"/customer/{customer_key}",
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
         assert resp_get.response_status == 200
@@ -77,7 +77,7 @@ class TestKycOnboarding:
         }
         resp = ClientRequisition.send(
             "POST",
-            f"/customers/{customer_key}/kyc/analysis",
+            f"/customer/{customer_key}/kyc/analysis",
             payload=payload,
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -99,7 +99,7 @@ class TestKycOnboarding:
         }
         resp = ClientRequisition.send(
             "POST",
-            f"/customers/{customer_key}/kyc/analysis",
+            f"/customer/{customer_key}/kyc/analysis",
             payload=payload,
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -114,7 +114,7 @@ class TestKycOnboarding:
         # Chamada sem score no payload -> deve acionar o KycConnector
         resp = ClientRequisition.send(
             "POST",
-            f"/customers/{customer_key}/kyc/analysis",
+            f"/customer/{customer_key}/kyc/analysis",
             payload={},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
