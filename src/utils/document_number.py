@@ -2,6 +2,13 @@ CPF_LENGTH = 11
 
 CHECK_DIGIT_POSITIONS = [9, 10]
 
+CNPJ_LENGTH = 14
+
+# Pesos dos dois dígitos verificadores do CNPJ. O primeiro dígito é
+# conferido sobre os 12 primeiros números; o segundo, sobre os 13.
+CNPJ_FIRST_WEIGHTS = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+CNPJ_SECOND_WEIGHTS = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+
 
 def is_valid_cpf(document_number: str) -> bool:
     """Diz se um CPF existe de verdade — não se ele tem a cara certa.
@@ -50,6 +57,57 @@ def is_valid_cpf(document_number: str) -> bool:
 
         for index in range(position):
             total = total + digits[index] * (first_weight - index)
+
+        remainder = total % 11
+
+        if remainder < 2:
+            expected_digit = 0
+        else:
+            expected_digit = 11 - remainder
+
+        if digits[position] != expected_digit:
+            return False
+
+    return True
+
+
+def is_valid_cnpj(document_number: str) -> bool:
+    """Diz se um CNPJ existe de verdade — não se ele tem a cara certa.
+
+    Mesma ideia do is_valid_cpf acima: o formato (14 dígitos com os
+    pontos, barra e hífen) é assunto do schema; aqui a pergunta é se os
+    dois últimos dígitos batem com a conta feita sobre os doze primeiros.
+    Por isso a recusa correspondente (InvalidCNPJ, QIT001008) é 422 e não
+    400 — o pedido foi lido e entendido, mas o número não pode existir.
+
+    A conta, para cada um dos dois dígitos verificadores: multiplica cada
+    dígito anterior pelo peso da posição, soma tudo, tira o resto da
+    divisão por 11. Resto menor que 2 vira dígito 0; nos outros casos, o
+    dígito é 11 menos o resto.
+    """
+    digits = []
+    for character in document_number:
+        if character.isdigit():
+            digits.append(int(character))
+
+    if len(digits) != CNPJ_LENGTH:
+        return False
+
+    # Um CNPJ de dígitos todos iguais passa na conta dos verificadores e
+    # mesmo assim não vale, exatamente como no CPF.
+    all_digits_are_equal = True
+    for digit in digits:
+        if digit != digits[0]:
+            all_digits_are_equal = False
+            break
+
+    if all_digits_are_equal:
+        return False
+
+    for position, weights in ((12, CNPJ_FIRST_WEIGHTS), (13, CNPJ_SECOND_WEIGHTS)):
+        total = 0
+        for index in range(position):
+            total = total + digits[index] * weights[index]
 
         remainder = total % 11
 

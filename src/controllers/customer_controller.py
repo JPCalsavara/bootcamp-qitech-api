@@ -8,11 +8,12 @@ from errors import (
     DuplicatedDocumentNumber,
     DuplicatedEmail,
     InvalidBirthdate,
+    InvalidCNPJ,
     InvalidDocumentNumber,
     NotFoundCustomer,
 )
 from repositories.customer_repository import CustomerRepository
-from utils.document_number import is_valid_cpf
+from utils.document_number import is_valid_cnpj, is_valid_cpf
 
 
 class CustomerController(BaseController):
@@ -37,6 +38,9 @@ class CustomerController(BaseController):
 
         if not is_valid_cpf(cpf):
             raise InvalidDocumentNumber(cpf)
+
+        if not is_valid_cnpj(cnpj):
+            raise InvalidCNPJ(cnpj)
 
         if self.customer_repository.get_by_cpf(cpf) is not None:
             raise DuplicatedDocumentNumber(cpf)

@@ -11,8 +11,7 @@ class TestAccountStatus:
         cpf = RandomGenerator.generate_cpf()
         random_suffix = str(uuid.uuid4())[:8]
         email = f"status.{random_suffix}@exemplo.com.br"
-        random_digits = f"{random.randint(1000, 9999)}"
-        cnpj = f"{random.randint(10, 99)}.{random.randint(100, 999)}.{random.randint(100, 999)}/{random_digits}-90"
+        cnpj = RandomGenerator.generate_cnpj()
 
         payload = {
             "name": "Titular Ciclo Vida",
