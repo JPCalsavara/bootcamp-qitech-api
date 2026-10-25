@@ -28,6 +28,7 @@ class AccountController(BaseController):
 
         # Contas podem ser criadas após aprovação ou no fluxo
         accounts = self.account_repository.create_twin_accounts(customer.id)
+        self.context.db_session.commit()
         return [AccountDTO.obj_to_dict(acc) for acc in accounts]
 
     def get_by_key(self, account_key: str) -> dict:
@@ -80,6 +81,7 @@ class AccountController(BaseController):
                 raise AccountClosePositiveBalance(account.balance)
 
         updated_account = self.account_repository.update_status(account.id, to_status_enum, reason_code)
+        self.context.db_session.commit()
         return {
             "account_key": updated_account.account_key,
             "status": updated_account.status.enumerator,
@@ -113,6 +115,7 @@ class AccountController(BaseController):
             raise InvalidOperation(f"Operação desconhecida: {operation}")
 
         updated_account = self.account_repository.update_blocked_balance(account.id, new_blocked)
+        self.context.db_session.commit()
         return {
             "account_key": updated_account.account_key,
             "balance": updated_account.balance,

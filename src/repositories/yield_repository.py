@@ -24,7 +24,7 @@ class YieldRepository:
             pos.ir_amount = 0
             pos.net_yield = 0
             self.session.add(pos)
-            self.session.commit()
+            self.session.flush()
         return pos
 
     def get_position_by_account_id(self, account_id: int) -> Optional[YieldPosition]:
@@ -79,5 +79,5 @@ class YieldRepository:
         event.net_yield = net_yield
 
         self.session.add(event)
-        self.session.commit()
+        self.session.flush()
         return event

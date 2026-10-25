@@ -41,7 +41,7 @@ class PocketRepository:
         pocket.is_locked = is_locked
 
         self.session.add(pocket)
-        self.session.commit()
+        self.session.flush()
         return pocket
 
     def update_pocket_balance(self, pocket_id: int, delta: int) -> Pocket:
@@ -49,7 +49,7 @@ class PocketRepository:
         if pocket.current_balance + delta < 0:
             raise InsufficientFunds("Saldo insuficiente na caixinha")
         pocket.current_balance += delta
-        self.session.commit()
+        self.session.flush()
         return pocket
 
     def create_transfer_policy(
@@ -69,7 +69,7 @@ class PocketRepository:
         policy.das_reserved_check = das_reserved_check
 
         self.session.add(policy)
-        self.session.commit()
+        self.session.flush()
         return policy
 
     def get_transfer_policy_by_pj(self, account_pj_id: int) -> Optional[TransferPolicy]:
@@ -93,7 +93,7 @@ class PocketRepository:
             tracker.threshold_warning_sent = False
             tracker.threshold_danger_sent = False
             self.session.add(tracker)
-            self.session.commit()
+            self.session.flush()
         return tracker
 
     def add_revenue(self, customer_id: int, year: int, amount: int) -> RevenueTracker:
@@ -123,5 +123,5 @@ class PocketRepository:
         if tracker.accumulated_revenue >= 8_100_000:
             tracker.threshold_danger_sent = True
 
-        self.session.commit()
+        self.session.flush()
         return tracker

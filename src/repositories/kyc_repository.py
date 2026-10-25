@@ -68,5 +68,5 @@ class KycRepository:
         event.event_datetime = datetime.now()
 
         self.session.add(event)
-        self.session.commit()
+        self.session.flush()
         return customer

@@ -45,7 +45,7 @@ class AccountRepository:
         event.to_status_id = acc_status.id
         event.reason_code = "ACCOUNT_OPENED"
         self.session.add(event)
-        self.session.commit()
+        self.session.flush()
         return account
 
     def create_twin_accounts(self, customer_id: int) -> List[Account]:
@@ -85,11 +85,11 @@ class AccountRepository:
         event.to_status_id = to_status.id
         event.reason_code = reason_code
         self.session.add(event)
-        self.session.commit()
+        self.session.flush()
         return account
 
     def update_blocked_balance(self, account_id: int, new_blocked_balance: int) -> Account:
         account = self.get_by_id(account_id)
         account.blocked_balance = new_blocked_balance
-        self.session.commit()
+        self.session.flush()
         return account

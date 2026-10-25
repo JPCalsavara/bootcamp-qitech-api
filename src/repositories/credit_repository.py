@@ -73,7 +73,7 @@ class CreditRepository:
             installment.status = "OPEN"
             self.session.add(installment)
 
-        self.session.commit()
+        self.session.flush()
         return contract
 
     def get_active_contract_for_pj(self, account_pj_id: int) -> Optional[CreditContract]:
@@ -106,7 +106,7 @@ class CreditRepository:
         anticipation.status = "COMPLETED"
 
         self.session.add(anticipation)
-        self.session.commit()
+        self.session.flush()
         return anticipation
 
     def get_contracts_with_overdue_installments(

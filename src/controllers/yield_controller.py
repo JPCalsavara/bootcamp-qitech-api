@@ -37,6 +37,8 @@ class YieldController(BaseController):
 
         pos = self.yield_repository.get_or_create_position(account.id)
 
+        self.context.db_session.commit()
+
         return {
             "accrual_event": YieldAccrualEventDTO.obj_to_dict(event),
             "position": YieldPositionDTO.obj_to_dict(pos),
@@ -48,6 +50,7 @@ class YieldController(BaseController):
             raise NotFoundAccount(account_key)
 
         pos = self.yield_repository.get_or_create_position(account.id)
+        self.context.db_session.commit()
         return YieldPositionDTO.obj_to_dict(pos)
 
     def invest(self, payload: dict) -> dict:

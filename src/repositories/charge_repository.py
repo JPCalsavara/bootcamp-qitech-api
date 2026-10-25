@@ -63,7 +63,7 @@ class ChargeRepository:
         charge.status_id = status.id
         if paid_at:
             charge.paid_at = paid_at
-        self.session.commit()
+        self.session.flush()
         return charge
 
     def create_webhook_event(
@@ -80,14 +80,14 @@ class ChargeRepository:
         event.processed = False
 
         self.session.add(event)
-        self.session.commit()
+        self.session.flush()
         return event
 
     def mark_webhook_processed(self, event_id: int) -> WebhookEvent:
         event = self.session.query(WebhookEvent).filter(WebhookEvent.id == event_id).first()
         event.processed = True
         event.processed_at = datetime.now()
-        self.session.commit()
+        self.session.flush()
         return event
 
     def create_chargeback(self, charge_id: int, amount: int, reason: str) -> ChargebackClaim:
@@ -99,7 +99,7 @@ class ChargeRepository:
         claim.status = "OPEN"
 
         self.session.add(claim)
-        self.session.commit()
+        self.session.flush()
         return claim
 
     def get_pending_charges(self, charge_keys: Optional[list] = None, limit: int = 100) -> list:
@@ -118,5 +118,5 @@ class ChargeRepository:
         item = WebhookNonce()
         item.nonce = nonce
         self.session.add(item)
-        self.session.commit()
+        self.session.flush()
         return item

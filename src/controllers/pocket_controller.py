@@ -28,6 +28,7 @@ class PocketController(BaseController):
             target_amount=payload.get("target_amount", 0),
             is_locked=payload.get("is_locked", False),
         )
+        self.context.db_session.commit()
         return PocketDTO.obj_to_dict(pocket)
 
     def get_pockets(self, account_key: str) -> List[dict]:
@@ -60,6 +61,7 @@ class PocketController(BaseController):
             require_pro_labore_approval=require_approval,
             das_reserved_check=das_check,
         )
+        self.context.db_session.commit()
         return TransferPolicyDTO.obj_to_dict(policy)
 
     def get_revenue_tracker(self, customer_key: str) -> dict:
@@ -71,6 +73,7 @@ class PocketController(BaseController):
             customer_id=customer.id,
             year=datetime.now().year,
         )
+        self.context.db_session.commit()
         return RevenueTrackerDTO.obj_to_dict(tracker)
 
     def deposit_to_pocket(self, account_key: str, pocket_key: str, payload: dict) -> dict:
@@ -85,4 +88,5 @@ class PocketController(BaseController):
             raise InsufficientFunds("Saldo insuficiente para depositar na caixinha")
         account.balance -= amount
         pocket = self.pocket_repository.update_pocket_balance(pocket.id, amount)
+        self.context.db_session.commit()
         return PocketDTO.obj_to_dict(pocket)

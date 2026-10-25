@@ -51,7 +51,7 @@ class LedgerRepository:
         record.response_body = response_body
         record.expires_at = datetime.now() + timedelta(seconds=ttl_seconds)
         self.session.add(record)
-        self.session.commit()
+        self.session.flush()
         return record
 
     def create_transaction(
@@ -112,6 +112,10 @@ class LedgerRepository:
         from_id = tx.status_id
         tx.status_id = status.id
         self.session.flush()
+        # O commit do repo expirava os atributos e forçava o relacionamento
+        # `status` a recarregar. Com o commit agora no controller, expiramos
+        # explicitamente para que o DTO leia o novo status antes do commit.
+        self.session.expire(tx, ["status"])
 
         event = TransactionStatusEvent()
         event.transaction_id = tx.id
@@ -221,7 +225,7 @@ class LedgerRepository:
         )
 
         self.update_transaction_status(tx.id, "completed", "TRANSFER_EXECUTED")
-        self.session.commit()
+        self.session.flush()
         return tx
 
     def execute_cash_in(
@@ -271,5 +275,5 @@ class LedgerRepository:
             )
 
         self.update_transaction_status(tx.id, "completed", "CASH_IN_SETTLED")
-        self.session.commit()
+        self.session.flush()
         return tx
