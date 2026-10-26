@@ -25,12 +25,12 @@ class TestTransfers:
             "transaction_pin": "1234",
         }
 
-        resp = ClientRequisition.send("POST", "/customers", payload=payload, headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp = ClientRequisition.send("POST", "/customer", payload=payload, headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         customer_key = resp.response_json["customer_key"]
 
         resp_accounts = ClientRequisition.send(
             "POST",
-            f"/customers/{customer_key}/accounts",
+            f"/customer/{customer_key}/account",
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
         accounts = resp_accounts.response_json
@@ -44,7 +44,7 @@ class TestTransfers:
         # 1. Cash-in na conta PJ: R$ 500,00 (50000 centavos)
         resp_cash_in = ClientRequisition.send(
             "POST",
-            "/transactions/cash-in",
+            "/cash-in",
             payload={"account_key": pj_key, "amount": 50000, "description": "Aporte inicial"},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -60,7 +60,7 @@ class TestTransfers:
         }
         resp_transfer = ClientRequisition.send(
             "POST",
-            "/transactions/transfers",
+            "/transfer",
             payload=transfer_payload,
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -70,18 +70,18 @@ class TestTransfers:
         assert tx["amount"] == 20000
 
         # 3. Verifica saldos atualizados
-        resp_pj_bal = ClientRequisition.send("GET", f"/accounts/{pj_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_pj_bal = ClientRequisition.send("GET", f"/account/{pj_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_pj_bal.response_json["balance"] == 30000
 
-        resp_pf_bal = ClientRequisition.send("GET", f"/accounts/{pf_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_pf_bal = ClientRequisition.send("GET", f"/account/{pf_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_pf_bal.response_json["balance"] == 20000
 
         # 4. Verifica extrato (Ledger) com partidas dobradas
-        resp_stmt_pj = ClientRequisition.send("GET", f"/accounts/{pj_key}/statement", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_stmt_pj = ClientRequisition.send("GET", f"/account/{pj_key}/statement", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         entries_pj = resp_stmt_pj.response_json
         assert any(e["entry_type"] == "DEBIT" and e["amount"] == 20000 and e["balance_after"] == 30000 for e in entries_pj)
 
-        resp_stmt_pf = ClientRequisition.send("GET", f"/accounts/{pf_key}/statement", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_stmt_pf = ClientRequisition.send("GET", f"/account/{pf_key}/statement", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         entries_pf = resp_stmt_pf.response_json
         assert any(e["entry_type"] == "CREDIT" and e["amount"] == 20000 and e["balance_after"] == 20000 for e in entries_pf)
 
@@ -98,7 +98,7 @@ class TestTransfers:
         }
         resp = ClientRequisition.send(
             "POST",
-            "/transactions/transfers",
+            "/transfer",
             payload=transfer_payload,
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -111,7 +111,7 @@ class TestTransfers:
         # Aporte inicial: R$ 300,00
         ClientRequisition.send(
             "POST",
-            "/transactions/cash-in",
+            "/cash-in",
             payload={"account_key": pj_key, "amount": 30000},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -128,7 +128,7 @@ class TestTransfers:
         # 1ª chamada com a chave
         resp1 = ClientRequisition.send(
             "POST",
-            "/transactions/transfers",
+            "/transfer",
             payload=transfer_payload,
             headers={
                 "INTERNAL-TOKEN": INTERNAL_TOKEN,
@@ -140,7 +140,7 @@ class TestTransfers:
         # 2ª chamada idêntica com a mesma chave
         resp2 = ClientRequisition.send(
             "POST",
-            "/transactions/transfers",
+            "/transfer",
             payload=transfer_payload,
             headers={
                 "INTERNAL-TOKEN": INTERNAL_TOKEN,
@@ -151,7 +151,7 @@ class TestTransfers:
         assert resp1.response_json == resp2.response_json
 
         # Saldo deve ter sido debitado apenas UMA vez (30000 - 10000 = 20000)
-        resp_bal = ClientRequisition.send("GET", f"/accounts/{pj_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_bal = ClientRequisition.send("GET", f"/account/{pj_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_bal.response_json["balance"] == 20000
 
     def test_transfer_invalid_pin_returns_401(self) -> None:
@@ -160,7 +160,7 @@ class TestTransfers:
         # Aporte inicial
         ClientRequisition.send(
             "POST",
-            "/transactions/cash-in",
+            "/cash-in",
             payload={"account_key": pj_key, "amount": 20000},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -174,7 +174,7 @@ class TestTransfers:
         }
         resp = ClientRequisition.send(
             "POST",
-            "/transactions/transfers",
+            "/transfer",
             payload=transfer_payload,
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -193,7 +193,7 @@ class TestTransfers:
         }
         resp = ClientRequisition.send(
             "POST",
-            "/transactions/transfers",
+            "/transfer",
             payload=transfer_payload,
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )

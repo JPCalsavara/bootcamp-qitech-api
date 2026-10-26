@@ -7,8 +7,13 @@ from database import Context
 from models.credit import (
     CreditContract,
     CreditContractStatus,
+    CreditContractStatusEvent,
     CreditInstallment,
+    CreditInstallmentStatus,
+    CreditInstallmentStatusEvent,
     ReceivablesAnticipation,
+    ReceivablesAnticipationStatus,
+    ReceivablesAnticipationStatusEvent,
 )
 
 
@@ -18,6 +23,35 @@ class CreditRepository:
 
     def get_status(self, enumerator: str) -> Optional[CreditContractStatus]:
         return self.session.query(CreditContractStatus).filter(CreditContractStatus.enumerator == enumerator).first()
+
+    def get_installment_status(self, enumerator: str) -> Optional[CreditInstallmentStatus]:
+        return (
+            self.session.query(CreditInstallmentStatus)
+            .filter(CreditInstallmentStatus.enumerator == enumerator)
+            .first()
+        )
+
+    def get_anticipation_status(self, enumerator: str) -> Optional[ReceivablesAnticipationStatus]:
+        return (
+            self.session.query(ReceivablesAnticipationStatus)
+            .filter(ReceivablesAnticipationStatus.enumerator == enumerator)
+            .first()
+        )
+
+    def update_installment_status(self, installment: CreditInstallment, status_enum: str, reason_code: str) -> None:
+        status = self.get_installment_status(status_enum)
+        from_status_id = installment.status_id
+        installment.status_id = status.id
+        self.session.flush()
+        self.session.expire(installment, ["status"])
+
+        event = CreditInstallmentStatusEvent()
+        event.credit_installment_id = installment.id
+        event.from_status_id = from_status_id
+        event.to_status_id = status.id
+        event.reason_code = reason_code
+        self.session.add(event)
+        self.session.flush()
 
     def get_by_key(self, contract_key: str) -> Optional[CreditContract]:
         return self.session.query(CreditContract).filter(CreditContract.contract_key == contract_key).first()
@@ -60,6 +94,7 @@ class CreditRepository:
         principal_part = requested_amount // term_months
         interest_part = installment_amount - principal_part
 
+        open_status = self.get_installment_status("OPEN")
         today = date.today()
         for i in range(1, term_months + 1):
             installment = CreditInstallment()
@@ -70,10 +105,18 @@ class CreditRepository:
             installment.principal_amount = principal_part
             installment.interest_amount = interest_part
             installment.due_date = today + timedelta(days=30 * i)
-            installment.status = "OPEN"
+            installment.status_id = open_status.id
             self.session.add(installment)
+            self.session.flush()
 
-        self.session.commit()
+            event = CreditInstallmentStatusEvent()
+            event.credit_installment_id = installment.id
+            event.from_status_id = None
+            event.to_status_id = open_status.id
+            event.reason_code = "INSTALLMENT_OPENED"
+            self.session.add(event)
+
+        self.session.flush()
         return contract
 
     def get_active_contract_for_pj(self, account_pj_id: int) -> Optional[CreditContract]:
@@ -96,6 +139,7 @@ class CreditRepository:
         discount_fee: int,
         charge_ids: List[str],
     ) -> ReceivablesAnticipation:
+        completed_status = self.get_anticipation_status("COMPLETED")
         anticipation = ReceivablesAnticipation()
         anticipation.anticipation_key = str(uuid4())
         anticipation.account_id = account_id
@@ -103,10 +147,18 @@ class CreditRepository:
         anticipation.discount_fee = discount_fee
         anticipation.net_disbursed_amount = original_amount - discount_fee
         anticipation.charge_ids = charge_ids
-        anticipation.status = "COMPLETED"
+        anticipation.status_id = completed_status.id
 
         self.session.add(anticipation)
-        self.session.commit()
+        self.session.flush()
+
+        event = ReceivablesAnticipationStatusEvent()
+        event.receivables_anticipation_id = anticipation.id
+        event.from_status_id = None
+        event.to_status_id = completed_status.id
+        event.reason_code = "ANTICIPATION_COMPLETED"
+        self.session.add(event)
+        self.session.flush()
         return anticipation
 
     def get_contracts_with_overdue_installments(
@@ -115,8 +167,9 @@ class CreditRepository:
         query = (
             self.session.query(CreditContract)
             .join(CreditInstallment)
+            .join(CreditInstallmentStatus, CreditInstallment.status_id == CreditInstallmentStatus.id)
             .filter(
-                CreditInstallment.status.in_(["OPEN", "OVERDUE"]),
+                CreditInstallmentStatus.enumerator.in_(["OPEN", "OVERDUE"]),
                 CreditInstallment.due_date <= cutoff_date,
             )
         )
@@ -127,15 +180,25 @@ class CreditRepository:
     def update_contract_status(self, contract: CreditContract, status_enum: str) -> None:
         status = self.get_status(status_enum)
         if status:
+            from_status_id = contract.status_id
             contract.status_id = status.id
+            self.session.flush()
+
+            event = CreditContractStatusEvent()
+            event.credit_contract_id = contract.id
+            event.from_status_id = from_status_id
+            event.to_status_id = status.id
+            event.reason_code = f"CONTRACT_STATUS_{status_enum.upper()}"
+            self.session.add(event)
             self.session.flush()
 
     def get_next_open_installment(self, contract_id: int) -> Optional[CreditInstallment]:
         return (
             self.session.query(CreditInstallment)
+            .join(CreditInstallmentStatus, CreditInstallment.status_id == CreditInstallmentStatus.id)
             .filter(
                 CreditInstallment.contract_id == contract_id,
-                CreditInstallment.status.in_(["OPEN", "OVERDUE"]),
+                CreditInstallmentStatus.enumerator.in_(["OPEN", "OVERDUE"]),
             )
             .order_by(CreditInstallment.due_date.asc(), CreditInstallment.installment_number.asc())
             .first()
@@ -145,8 +208,9 @@ class CreditRepository:
         return (
             self.session.query(CreditInstallment)
             .join(CreditContract)
+            .join(CreditInstallmentStatus, CreditInstallment.status_id == CreditInstallmentStatus.id)
             .filter(
-                CreditInstallment.status.in_(["OPEN", "OVERDUE"]),
+                CreditInstallmentStatus.enumerator.in_(["OPEN", "OVERDUE"]),
                 CreditInstallment.due_date <= target_date,
             )
             .order_by(CreditInstallment.due_date.asc())

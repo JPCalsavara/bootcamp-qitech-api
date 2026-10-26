@@ -173,7 +173,7 @@ class CreditController(BaseController):
             overdue_installments = [
                 inst
                 for inst in contract.installments
-                if inst.status in ["OPEN", "OVERDUE"] and inst.due_date <= cutoff_date
+                if inst.status.enumerator in ["OPEN", "OVERDUE"] and inst.due_date <= cutoff_date
             ]
             overdue_installments.sort(key=lambda x: (x.due_date, x.installment_number))
 
@@ -195,8 +195,10 @@ class CreditController(BaseController):
                         description=f"Compensação Garantia Cruzada MEI (CCB Art. 368 CC) Parc {installment.installment_number}",
                     )
                     installment.paid_amount += needed
-                    installment.status = "PAID"
                     installment.paid_at = datetime.now()
+                    self.credit_repository.update_installment_status(
+                        installment, "PAID", "INSTALLMENT_SETTLED_CROSS_GUARANTEE"
+                    )
                     self.context.db_session.flush()
 
                     settled_count += 1
@@ -212,7 +214,9 @@ class CreditController(BaseController):
                         }
                     )
                 else:
-                    installment.status = "OVERDUE"
+                    self.credit_repository.update_installment_status(
+                        installment, "OVERDUE", "INSTALLMENT_OVERDUE_INSUFFICIENT_FUNDS"
+                    )
                     self.credit_repository.update_contract_status(contract, "defaulted")
                     self.context.db_session.flush()
                     details.append(
@@ -226,9 +230,9 @@ class CreditController(BaseController):
                         }
                     )
 
-            if all(inst.status == "PAID" for inst in contract.installments):
+            if all(inst.status.enumerator == "PAID" for inst in contract.installments):
                 self.credit_repository.update_contract_status(contract, "settled")
-            elif any(inst.status == "OVERDUE" for inst in contract.installments):
+            elif any(inst.status.enumerator == "OVERDUE" for inst in contract.installments):
                 self.credit_repository.update_contract_status(contract, "defaulted")
             else:
                 self.credit_repository.update_contract_status(contract, "active")
@@ -266,8 +270,10 @@ class CreditController(BaseController):
             if pocket.current_balance >= needed:
                 self.pocket_repository.update_pocket_balance(contract.pocket_id, -needed)
                 installment.paid_amount += needed
-                installment.status = "PAID"
                 installment.paid_at = datetime.now()
+                self.credit_repository.update_installment_status(
+                    installment, "PAID", "INSTALLMENT_SETTLED_FROM_POCKET"
+                )
                 self.context.db_session.flush()
 
                 settled_count += 1
@@ -282,7 +288,7 @@ class CreditController(BaseController):
                     }
                 )
 
-                if all(inst.status == "PAID" for inst in contract.installments):
+                if all(inst.status.enumerator == "PAID" for inst in contract.installments):
                     self.credit_repository.update_contract_status(contract, "settled")
                 elif contract.status.enumerator != "active":
                     self.credit_repository.update_contract_status(contract, "active")

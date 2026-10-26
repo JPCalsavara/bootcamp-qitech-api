@@ -5,6 +5,17 @@ from models.base import Base
 from models.account import Account
 
 
+class LedgerEntryType(Base):
+    __tablename__ = "ledger_entry_type"
+
+    id = Column(Integer, primary_key=True)
+    enumerator = Column(String(50), nullable=False)
+    description = Column(String(255), nullable=False)
+    created_at = Column(DateTime, nullable=False, server_default=func.now())
+
+    __table_args__ = (UniqueConstraint("enumerator"),)
+
+
 class TransactionType(Base):
     __tablename__ = "transaction_type"
 
@@ -76,7 +87,7 @@ class LedgerEntry(Base):
     entry_key = Column(CHAR(36), nullable=False)
     transaction_id = Column(Integer, ForeignKey(Transaction.id), nullable=False)
     account_id = Column(Integer, ForeignKey(Account.id), nullable=False)
-    entry_type = Column(String(10), nullable=False)
+    entry_type_id = Column(Integer, ForeignKey(LedgerEntryType.id), nullable=False)
     amount = Column(BigInteger, nullable=False)
     balance_after = Column(BigInteger, nullable=False)
     description = Column(String(255), nullable=True)
@@ -86,6 +97,7 @@ class LedgerEntry(Base):
 
     transaction = relationship("Transaction", foreign_keys=[transaction_id])
     account = relationship("Account", foreign_keys=[account_id])
+    entry_type = relationship("LedgerEntryType", foreign_keys=[entry_type_id], lazy="selectin")
 
 
 class IdempotencyRecord(Base):

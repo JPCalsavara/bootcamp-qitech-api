@@ -4,6 +4,7 @@ from dtos.account_dto import AccountDTO
 from errors.custom_errors import (
     AccountClosePositiveBalance,
     AccountStatusNotFound,
+    CustomerNotActive,
     InsufficientFunds,
     InvalidOperation,
     NotFoundAccount,
@@ -26,8 +27,18 @@ class AccountController(BaseController):
         if not customer:
             raise NotFoundCustomer(customer_key)
 
+        # Um cliente em estado terminal/negativo (reprovado no KYC ou
+        # bloqueado) não pode abrir contas. Os estados iniciais do
+        # onboarding ('created', 'kyc_pending', 'under_review') e o
+        # 'active' seguem permitidos: as contas podem nascer antes ou
+        # depois da aprovação, mas nunca para quem já foi barrado.
+        blocked_customer_statuses = ("rejected", "blocked")
+        if customer.status.enumerator in blocked_customer_statuses:
+            raise CustomerNotActive(customer.status.enumerator)
+
         # Contas podem ser criadas após aprovação ou no fluxo
         accounts = self.account_repository.create_twin_accounts(customer.id)
+        self.context.db_session.commit()
         return [AccountDTO.obj_to_dict(acc) for acc in accounts]
 
     def get_by_key(self, account_key: str) -> dict:
@@ -36,11 +47,11 @@ class AccountController(BaseController):
             raise NotFoundAccount(account_key)
         return AccountDTO.obj_to_dict(account)
 
-    def get_by_customer(self, customer_key: str) -> List[dict]:
+    def get_by_customer(self, customer_key: str, limit: int = 50, offset: int = 0) -> List[dict]:
         customer = self.customer_repository.get_by_key(customer_key)
         if not customer:
             raise NotFoundCustomer(customer_key)
-        accounts = self.account_repository.get_by_customer_id(customer.id)
+        accounts = self.account_repository.get_by_customer_id(customer.id, limit=limit, offset=offset)
         return [AccountDTO.obj_to_dict(acc) for acc in accounts]
 
     def get_balance(self, account_key: str) -> dict:
@@ -80,6 +91,7 @@ class AccountController(BaseController):
                 raise AccountClosePositiveBalance(account.balance)
 
         updated_account = self.account_repository.update_status(account.id, to_status_enum, reason_code)
+        self.context.db_session.commit()
         return {
             "account_key": updated_account.account_key,
             "status": updated_account.status.enumerator,
@@ -113,6 +125,7 @@ class AccountController(BaseController):
             raise InvalidOperation(f"Operação desconhecida: {operation}")
 
         updated_account = self.account_repository.update_blocked_balance(account.id, new_blocked)
+        self.context.db_session.commit()
         return {
             "account_key": updated_account.account_key,
             "balance": updated_account.balance,

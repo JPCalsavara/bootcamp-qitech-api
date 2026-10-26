@@ -29,7 +29,7 @@ class TestCustomerCreate:
 
         response = ClientRequisition.send(
             "POST",
-            "/customers",
+            "/customer",
             payload=payload,
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )

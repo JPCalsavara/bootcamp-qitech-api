@@ -50,6 +50,17 @@ class CreditContract(Base):
     )
 
 
+class CreditInstallmentStatus(Base):
+    __tablename__ = "credit_installment_status"
+
+    id = Column(Integer, primary_key=True)
+    enumerator = Column(String(50), nullable=False)
+    description = Column(String(255), nullable=False)
+    created_at = Column(DateTime, nullable=False, server_default=func.now())
+
+    __table_args__ = (UniqueConstraint("enumerator"),)
+
+
 class CreditInstallment(Base):
     __tablename__ = "credit_installment"
 
@@ -62,13 +73,25 @@ class CreditInstallment(Base):
     interest_amount = Column(BigInteger, nullable=False)
     due_date = Column(Date, nullable=False)
     paid_amount = Column(BigInteger, nullable=False, default=0)
-    status = Column(String(50), nullable=False, default="OPEN")
+    status_id = Column(Integer, ForeignKey(CreditInstallmentStatus.id), nullable=False)
     paid_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, nullable=False, server_default=func.now())
 
     __table_args__ = (UniqueConstraint("installment_key"),)
 
     contract = relationship("CreditContract", foreign_keys=[contract_id], back_populates="installments")
+    status = relationship("CreditInstallmentStatus", foreign_keys=[status_id], lazy="selectin")
+
+
+class ReceivablesAnticipationStatus(Base):
+    __tablename__ = "receivables_anticipation_status"
+
+    id = Column(Integer, primary_key=True)
+    enumerator = Column(String(50), nullable=False)
+    description = Column(String(255), nullable=False)
+    created_at = Column(DateTime, nullable=False, server_default=func.now())
+
+    __table_args__ = (UniqueConstraint("enumerator"),)
 
 
 class ReceivablesAnticipation(Base):
@@ -81,9 +104,52 @@ class ReceivablesAnticipation(Base):
     discount_fee = Column(BigInteger, nullable=False)
     net_disbursed_amount = Column(BigInteger, nullable=False)
     charge_ids = Column(JSONB, nullable=False)
-    status = Column(String(50), nullable=False, default="COMPLETED")
+    status_id = Column(Integer, ForeignKey(ReceivablesAnticipationStatus.id), nullable=False)
     created_at = Column(DateTime, nullable=False, server_default=func.now())
 
     __table_args__ = (UniqueConstraint("anticipation_key"),)
 
     account = relationship("Account", foreign_keys=[account_id], lazy="selectin")
+    status = relationship("ReceivablesAnticipationStatus", foreign_keys=[status_id], lazy="selectin")
+
+
+class CreditContractStatusEvent(Base):
+    __tablename__ = "credit_contract_status_event"
+
+    id = Column(Integer, primary_key=True)
+    credit_contract_id = Column(Integer, ForeignKey(CreditContract.id), nullable=False)
+    from_status_id = Column(Integer, ForeignKey(CreditContractStatus.id), nullable=True)
+    to_status_id = Column(Integer, ForeignKey(CreditContractStatus.id), nullable=False)
+    reason_code = Column(String(100), nullable=False)
+    created_at = Column(DateTime, nullable=False, server_default=func.now())
+
+    contract = relationship("CreditContract", foreign_keys=[credit_contract_id])
+    to_status = relationship("CreditContractStatus", foreign_keys=[to_status_id], lazy="selectin")
+
+
+class CreditInstallmentStatusEvent(Base):
+    __tablename__ = "credit_installment_status_event"
+
+    id = Column(Integer, primary_key=True)
+    credit_installment_id = Column(Integer, ForeignKey(CreditInstallment.id), nullable=False)
+    from_status_id = Column(Integer, ForeignKey(CreditInstallmentStatus.id), nullable=True)
+    to_status_id = Column(Integer, ForeignKey(CreditInstallmentStatus.id), nullable=False)
+    reason_code = Column(String(100), nullable=False)
+    created_at = Column(DateTime, nullable=False, server_default=func.now())
+
+    installment = relationship("CreditInstallment", foreign_keys=[credit_installment_id])
+    to_status = relationship("CreditInstallmentStatus", foreign_keys=[to_status_id], lazy="selectin")
+
+
+class ReceivablesAnticipationStatusEvent(Base):
+    __tablename__ = "receivables_anticipation_status_event"
+
+    id = Column(Integer, primary_key=True)
+    receivables_anticipation_id = Column(Integer, ForeignKey(ReceivablesAnticipation.id), nullable=False)
+    from_status_id = Column(Integer, ForeignKey(ReceivablesAnticipationStatus.id), nullable=True)
+    to_status_id = Column(Integer, ForeignKey(ReceivablesAnticipationStatus.id), nullable=False)
+    reason_code = Column(String(100), nullable=False)
+    created_at = Column(DateTime, nullable=False, server_default=func.now())
+
+    anticipation = relationship("ReceivablesAnticipation", foreign_keys=[receivables_anticipation_id])
+    to_status = relationship("ReceivablesAnticipationStatus", foreign_keys=[to_status_id], lazy="selectin")

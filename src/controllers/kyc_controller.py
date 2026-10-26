@@ -86,6 +86,8 @@ class KycController(BaseController):
             reason_detail={"score": score, "recommendation": recommendation},
         )
 
+        self.context.db_session.commit()
+
         return {
             "analysis_key": analysis.analysis_key,
             "customer_key": customer.customer_key,

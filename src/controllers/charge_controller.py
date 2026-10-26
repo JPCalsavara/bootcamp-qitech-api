@@ -207,6 +207,8 @@ class ChargeController(BaseController):
         settle_result = self._settle_charge(charge)
         self.charge_repository.mark_webhook_processed(event.id)
 
+        self.context.db_session.commit()
+
         return {
             "status": "processed",
             "charge_key": charge.charge_key,
@@ -231,6 +233,8 @@ class ChargeController(BaseController):
                 result = self._settle_charge(charge)
                 reconciled.append(result)
                 settled_amount += charge.amount
+
+        self.context.db_session.commit()
 
         return {
             "reconciled_count": len(reconciled),

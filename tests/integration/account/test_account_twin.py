@@ -27,7 +27,7 @@ class TestAccountTwin:
 
         resp_customer = ClientRequisition.send(
             "POST",
-            "/customers",
+            "/customer",
             payload=payload,
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -37,7 +37,7 @@ class TestAccountTwin:
         # 2. Provisiona contas gêmeas (PF e PJ)
         resp_accounts = ClientRequisition.send(
             "POST",
-            f"/customers/{customer_key}/accounts",
+            f"/customer/{customer_key}/account",
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
         assert resp_accounts.response_status == 201
@@ -53,29 +53,29 @@ class TestAccountTwin:
             assert "account_key" in acc
             assert "account_number" in acc
 
-        # 3. Lista contas do customer via GET /customers/{customer_key}/accounts
+        # 3. Lista contas do customer via GET /customer/{customer_key}/accounts
         resp_list = ClientRequisition.send(
             "GET",
-            f"/customers/{customer_key}/accounts",
+            f"/customer/{customer_key}/accounts",
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
         assert resp_list.response_status == 200
         assert len(resp_list.response_json) == 2
 
-        # 4. Consulta conta individual via GET /accounts/{account_key}
+        # 4. Consulta conta individual via GET /account/{account_key}
         pj_key = next(acc["account_key"] for acc in accounts if acc["type"] == "PJ")
         resp_get = ClientRequisition.send(
             "GET",
-            f"/accounts/{pj_key}",
+            f"/account/{pj_key}",
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
         assert resp_get.response_status == 200
         assert resp_get.response_json["account_key"] == pj_key
 
-        # 5. Consulta saldo via GET /accounts/{account_key}/balance
+        # 5. Consulta saldo via GET /account/{account_key}/balance
         resp_balance = ClientRequisition.send(
             "GET",
-            f"/accounts/{pj_key}/balance",
+            f"/account/{pj_key}/balance",
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
         assert resp_balance.response_status == 200

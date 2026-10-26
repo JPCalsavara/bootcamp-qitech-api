@@ -30,12 +30,12 @@ class TestCreditContract:
             "transaction_pin": "1234",
         }
 
-        resp = ClientRequisition.send("POST", "/customers", payload=payload, headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp = ClientRequisition.send("POST", "/customer", payload=payload, headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         customer_key = resp.response_json["customer_key"]
 
         resp_accounts = ClientRequisition.send(
             "POST",
-            f"/customers/{customer_key}/accounts",
+            f"/customer/{customer_key}/account",
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
         accounts = resp_accounts.response_json
@@ -58,7 +58,7 @@ class TestCreditContract:
 
         resp_contract = ClientRequisition.send(
             "POST",
-            "/credit/contracts",
+            "/credit/contract",
             payload=contract_payload,
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -72,13 +72,13 @@ class TestCreditContract:
         contract_key = contract["contract_key"]
 
         # Verifica saldo na conta PJ: R$ 5.000,00 desembolsados
-        resp_bal = ClientRequisition.send("GET", f"/accounts/{pj_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_bal = ClientRequisition.send("GET", f"/account/{pj_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_bal.response_json["balance"] == 500000
 
-        # Consulta contrato via GET /credit/contracts/{contract_key}
+        # Consulta contrato via GET /credit/contract/{contract_key}
         resp_get = ClientRequisition.send(
             "GET",
-            f"/credit/contracts/{contract_key}",
+            f"/credit/contract/{contract_key}",
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
         assert resp_get.response_status == 200
@@ -96,7 +96,7 @@ class TestCreditContract:
 
         resp = ClientRequisition.send(
             "POST",
-            "/credit/anticipations",
+            "/credit/anticipation",
             payload=anticipation_payload,
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -107,7 +107,7 @@ class TestCreditContract:
         assert data["net_disbursed_amount"] == data["original_amount"] - data["discount_fee"]
 
         # Verifica se o valor líquido foi creditado na conta
-        resp_bal = ClientRequisition.send("GET", f"/accounts/{pj_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_bal = ClientRequisition.send("GET", f"/account/{pj_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_bal.response_json["balance"] == data["net_disbursed_amount"]
 
     def test_receivables_retention_smart_cap_and_settle_due_installment(self) -> None:
@@ -126,7 +126,7 @@ class TestCreditContract:
         }
         resp_contract = ClientRequisition.send(
             "POST",
-            "/credit/contracts",
+            "/credit/contract",
             payload=contract_payload,
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -142,7 +142,7 @@ class TestCreditContract:
         # O teto inteligente deve reter estritamente o déficit da parcela 1 (inst_1_amount)!
         resp_charge1 = ClientRequisition.send(
             "POST",
-            f"/accounts/{pj_key}/charges",
+            f"/account/{pj_key}/charge",
             payload={"method": "PIX", "amount": 150000, "due_date": (date.today() + timedelta(days=5)).isoformat()},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -157,7 +157,7 @@ class TestCreditContract:
         ).hexdigest()
         resp_wh1 = ClientRequisition.send(
             "POST",
-            "/webhooks/payments",
+            "/webhook/payment",
             payload=wh_payload1,
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN, "X-Signature-SHA256": sig1},
         )
@@ -165,7 +165,7 @@ class TestCreditContract:
         assert resp_wh1.response_json["retained_for_credit"] == inst_1_amount
 
         # Verifica caixinha de amortização: saldo exatamente igual ao valor da parcela
-        resp_pockets = ClientRequisition.send("GET", f"/accounts/{pj_key}/pockets", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_pockets = ClientRequisition.send("GET", f"/account/{pj_key}/pockets", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         pocket = next(p for p in resp_pockets.response_json if p["pocket_key"] == pocket_key)
         assert pocket["current_balance"] == inst_1_amount
 
@@ -173,7 +173,7 @@ class TestCreditContract:
         # Com a caixinha da parcela 1 já atingida (déficit == 0), a retenção deve ser 0!
         resp_charge2 = ClientRequisition.send(
             "POST",
-            f"/accounts/{pj_key}/charges",
+            f"/account/{pj_key}/charge",
             payload={"method": "PIX", "amount": 50000, "due_date": (date.today() + timedelta(days=5)).isoformat()},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -188,7 +188,7 @@ class TestCreditContract:
         ).hexdigest()
         resp_wh2 = ClientRequisition.send(
             "POST",
-            "/webhooks/payments",
+            "/webhook/payment",
             payload=wh_payload2,
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN, "X-Signature-SHA256": sig2},
         )
@@ -196,14 +196,14 @@ class TestCreditContract:
         assert resp_wh2.response_json["retained_for_credit"] == 0
 
         # Saldo do pocket permanece inst_1_amount (não reteve nada a mais)
-        resp_pockets_after = ClientRequisition.send("GET", f"/accounts/{pj_key}/pockets", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_pockets_after = ClientRequisition.send("GET", f"/account/{pj_key}/pockets", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         pocket_after = next(p for p in resp_pockets_after.response_json if p["pocket_key"] == pocket_key)
         assert pocket_after["current_balance"] == inst_1_amount
 
-        # 4. Quitação automática de parcelas vencidas via endpoint POST /credit/installments/settle-due
+        # 4. Quitação automática de parcelas vencidas via endpoint POST /credit/installment/settle-due
         resp_settle = ClientRequisition.send(
             "POST",
-            "/credit/installments/settle-due",
+            "/credit/installment/settle-due",
             payload={"target_date": inst_1["due_date"]},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -213,10 +213,10 @@ class TestCreditContract:
         assert any(d["contract_key"] == contract_key and d["status"] == "PAID_FROM_POCKET" for d in settle_data["details"])
 
         # Verifica contrato atualizado: parcela 1 agora está PAID
-        resp_contract_after = ClientRequisition.send("GET", f"/credit/contracts/{contract_key}", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_contract_after = ClientRequisition.send("GET", f"/credit/contract/{contract_key}", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_contract_after.response_json["installments"][0]["status"] == "PAID"
 
         # Verifica saldo do pocket debitado para 0
-        resp_pockets_final = ClientRequisition.send("GET", f"/accounts/{pj_key}/pockets", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_pockets_final = ClientRequisition.send("GET", f"/account/{pj_key}/pockets", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         pocket_final = next(p for p in resp_pockets_final.response_json if p["pocket_key"] == pocket_key)
         assert pocket_final["current_balance"] == 0

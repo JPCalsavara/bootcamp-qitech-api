@@ -3,7 +3,17 @@ from typing import Any, Dict, Optional
 from uuid import uuid4
 
 from database import Context
-from models.charge import Charge, ChargeMethod, ChargeStatus, ChargebackClaim, WebhookEvent
+from models.charge import (
+    Charge,
+    ChargeMethod,
+    ChargeStatus,
+    ChargeStatusEvent,
+    ChargebackClaim,
+    ChargebackClaimStatus,
+    ChargebackClaimStatusEvent,
+    WebhookEvent,
+    WebhookEventType,
+)
 from models.webhook_nonce import WebhookNonce
 
 
@@ -16,6 +26,16 @@ class ChargeRepository:
 
     def get_status(self, enumerator: str) -> Optional[ChargeStatus]:
         return self.session.query(ChargeStatus).filter(ChargeStatus.enumerator == enumerator).first()
+
+    def get_event_type(self, enumerator: str) -> Optional[WebhookEventType]:
+        return self.session.query(WebhookEventType).filter(WebhookEventType.enumerator == enumerator).first()
+
+    def get_chargeback_status(self, enumerator: str) -> Optional[ChargebackClaimStatus]:
+        return (
+            self.session.query(ChargebackClaimStatus)
+            .filter(ChargebackClaimStatus.enumerator == enumerator)
+            .first()
+        )
 
     def get_by_key(self, charge_key: str) -> Optional[Charge]:
         return self.session.query(Charge).filter(Charge.charge_key == charge_key).first()
@@ -55,15 +75,32 @@ class ChargeRepository:
 
         self.session.add(charge)
         self.session.flush()
+
+        event = ChargeStatusEvent()
+        event.charge_id = charge.id
+        event.from_status_id = None
+        event.to_status_id = status.id
+        event.reason_code = "CHARGE_CREATED"
+        self.session.add(event)
+        self.session.flush()
         return charge
 
     def update_status(self, charge_id: int, to_status_enum: str, paid_at: Optional[datetime] = None) -> Charge:
         charge = self.session.query(Charge).filter(Charge.id == charge_id).first()
+        from_status_id = charge.status_id
         status = self.get_status(to_status_enum)
         charge.status_id = status.id
         if paid_at:
             charge.paid_at = paid_at
-        self.session.commit()
+        self.session.flush()
+
+        event = ChargeStatusEvent()
+        event.charge_id = charge.id
+        event.from_status_id = from_status_id
+        event.to_status_id = status.id
+        event.reason_code = f"CHARGE_STATUS_{to_status_enum.upper()}"
+        self.session.add(event)
+        self.session.flush()
         return charge
 
     def create_webhook_event(
@@ -74,32 +111,41 @@ class ChargeRepository:
     ) -> WebhookEvent:
         event = WebhookEvent()
         event.event_key = str(uuid4())
-        event.event_type = event_type
+        event.event_type_id = self.get_event_type(event_type).id
         event.payload = payload
         event.signature = signature
         event.processed = False
 
         self.session.add(event)
-        self.session.commit()
+        self.session.flush()
         return event
 
     def mark_webhook_processed(self, event_id: int) -> WebhookEvent:
         event = self.session.query(WebhookEvent).filter(WebhookEvent.id == event_id).first()
         event.processed = True
         event.processed_at = datetime.now()
-        self.session.commit()
+        self.session.flush()
         return event
 
     def create_chargeback(self, charge_id: int, amount: int, reason: str) -> ChargebackClaim:
+        open_status = self.get_chargeback_status("OPEN")
         claim = ChargebackClaim()
         claim.claim_key = str(uuid4())
         claim.charge_id = charge_id
         claim.amount = amount
         claim.reason = reason
-        claim.status = "OPEN"
+        claim.status_id = open_status.id
 
         self.session.add(claim)
-        self.session.commit()
+        self.session.flush()
+
+        event = ChargebackClaimStatusEvent()
+        event.chargeback_claim_id = claim.id
+        event.from_status_id = None
+        event.to_status_id = open_status.id
+        event.reason_code = "CHARGEBACK_OPENED"
+        self.session.add(event)
+        self.session.flush()
         return claim
 
     def get_pending_charges(self, charge_keys: Optional[list] = None, limit: int = 100) -> list:
@@ -117,6 +163,7 @@ class ChargeRepository:
     def save_nonce(self, nonce: str) -> WebhookNonce:
         item = WebhookNonce()
         item.nonce = nonce
+        item.webhook_nonce_key = str(uuid4())
         self.session.add(item)
-        self.session.commit()
+        self.session.flush()
         return item

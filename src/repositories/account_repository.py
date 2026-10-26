@@ -21,8 +21,15 @@ class AccountRepository:
     def get_by_id(self, account_id: int) -> Optional[Account]:
         return self.session.query(Account).filter(Account.id == account_id).first()
 
-    def get_by_customer_id(self, customer_id: int) -> List[Account]:
-        return self.session.query(Account).filter(Account.customer_id == customer_id).all()
+    def get_by_customer_id(self, customer_id: int, limit: int = 50, offset: int = 0) -> List[Account]:
+        return (
+            self.session.query(Account)
+            .filter(Account.customer_id == customer_id)
+            .order_by(Account.id)
+            .offset(offset)
+            .limit(limit)
+            .all()
+        )
 
     def create(self, customer_id: int, type_enum: str, branch_number: str = "0001") -> Account:
         acc_type = self.get_type(type_enum)
@@ -45,7 +52,7 @@ class AccountRepository:
         event.to_status_id = acc_status.id
         event.reason_code = "ACCOUNT_OPENED"
         self.session.add(event)
-        self.session.commit()
+        self.session.flush()
         return account
 
     def create_twin_accounts(self, customer_id: int) -> List[Account]:
@@ -85,11 +92,11 @@ class AccountRepository:
         event.to_status_id = to_status.id
         event.reason_code = reason_code
         self.session.add(event)
-        self.session.commit()
+        self.session.flush()
         return account
 
     def update_blocked_balance(self, account_id: int, new_blocked_balance: int) -> Account:
         account = self.get_by_id(account_id)
         account.blocked_balance = new_blocked_balance
-        self.session.commit()
+        self.session.flush()
         return account

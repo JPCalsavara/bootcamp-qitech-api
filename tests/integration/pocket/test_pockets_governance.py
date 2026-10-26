@@ -24,12 +24,12 @@ class TestPocketsGovernance:
             "transaction_pin": "1234",
         }
 
-        resp = ClientRequisition.send("POST", "/customers", payload=payload, headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp = ClientRequisition.send("POST", "/customer", payload=payload, headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         customer_key = resp.response_json["customer_key"]
 
         resp_accounts = ClientRequisition.send(
             "POST",
-            f"/customers/{customer_key}/accounts",
+            f"/customer/{customer_key}/account",
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
         accounts = resp_accounts.response_json
@@ -43,7 +43,7 @@ class TestPocketsGovernance:
         # 1. Cria caixinha de reserva prioritária do DAS
         resp_pocket = ClientRequisition.send(
             "POST",
-            f"/accounts/{pj_key}/pockets",
+            f"/account/{pj_key}/pocket",
             payload={
                 "type": "DAS_IMPOSTOS",
                 "name": "Imposto DAS Mensal",
@@ -59,7 +59,7 @@ class TestPocketsGovernance:
         assert pocket_data["current_balance"] == 0
 
         # 2. Lista caixinhas da conta PJ
-        resp_list = ClientRequisition.send("GET", f"/accounts/{pj_key}/pockets", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_list = ClientRequisition.send("GET", f"/account/{pj_key}/pockets", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_list.response_status == 200
         pockets = resp_list.response_json
         assert len(pockets) >= 1
@@ -71,7 +71,7 @@ class TestPocketsGovernance:
         # Aporte de saldo na PJ
         ClientRequisition.send(
             "POST",
-            "/transactions/cash-in",
+            "/cash-in",
             payload={"account_key": pj_key, "amount": 100000},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -79,7 +79,7 @@ class TestPocketsGovernance:
         # Cria caixinha do DAS com alvo R$ 75,00 (7500 centavos) vazia
         resp_pocket = ClientRequisition.send(
             "POST",
-            f"/accounts/{pj_key}/pockets",
+            f"/account/{pj_key}/pocket",
             payload={
                 "type": "DAS_IMPOSTOS",
                 "name": "DAS Reserva",
@@ -105,7 +105,7 @@ class TestPocketsGovernance:
         # Tentativa de transferir PJ -> PF antes de preencher o DAS é bloqueada (422)
         resp_transfer_fail = ClientRequisition.send(
             "POST",
-            "/transactions/transfers",
+            "/transfer",
             payload={
                 "source_account_key": pj_key,
                 "destination_account_key": pf_key,
@@ -120,7 +120,7 @@ class TestPocketsGovernance:
         # Deposita o valor na caixinha do DAS
         resp_dep = ClientRequisition.send(
             "POST",
-            f"/accounts/{pj_key}/pockets/{pocket_key}/deposit",
+            f"/account/{pj_key}/pocket/{pocket_key}/deposit",
             payload={"amount": 7500},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -129,7 +129,7 @@ class TestPocketsGovernance:
         # Agora a transferência PJ -> PF deve ser autorizada
         resp_transfer_ok = ClientRequisition.send(
             "POST",
-            "/transactions/transfers",
+            "/transfer",
             payload={
                 "source_account_key": pj_key,
                 "destination_account_key": pf_key,
@@ -146,7 +146,7 @@ class TestPocketsGovernance:
 
         resp_tracker = ClientRequisition.send(
             "GET",
-            f"/customers/{customer_key}/revenue-tracker",
+            f"/customer/{customer_key}/revenue-tracker",
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
         assert resp_tracker.response_status == 200

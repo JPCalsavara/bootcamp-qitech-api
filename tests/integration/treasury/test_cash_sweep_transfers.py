@@ -24,12 +24,12 @@ class TestCashSweepTransfers:
             "transaction_pin": "1234",
         }
 
-        resp = ClientRequisition.send("POST", "/customers", payload=payload, headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp = ClientRequisition.send("POST", "/customer", payload=payload, headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         customer_key = resp.response_json["customer_key"]
 
         resp_accounts = ClientRequisition.send(
             "POST",
-            f"/customers/{customer_key}/accounts",
+            f"/customer/{customer_key}/account",
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
         accounts = resp_accounts.response_json
@@ -43,7 +43,7 @@ class TestCashSweepTransfers:
         # Aporte de R$ 1.000,00 na conta de origem
         ClientRequisition.send(
             "POST",
-            "/transactions/cash-in",
+            "/cash-in",
             payload={"account_key": src_key, "amount": 100000},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -61,7 +61,7 @@ class TestCashSweepTransfers:
         # Transfere R$ 200,00 (20000 centavos) -> Saldo livre é suficiente!
         resp_tx = ClientRequisition.send(
             "POST",
-            "/transactions/transfers",
+            "/transfer",
             payload={
                 "source_account_key": src_key,
                 "destination_account_key": dst_key,
@@ -74,15 +74,15 @@ class TestCashSweepTransfers:
         assert resp_tx.response_status == 200
 
         # Verifica saldo livre: 50000 - 20000 = 30000
-        resp_bal = ClientRequisition.send("GET", f"/accounts/{src_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_bal = ClientRequisition.send("GET", f"/account/{src_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_bal.response_json["balance"] == 30000
 
         # Verifica saldo no destino: 20000
-        resp_dst_bal = ClientRequisition.send("GET", f"/accounts/{dst_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_dst_bal = ClientRequisition.send("GET", f"/account/{dst_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_dst_bal.response_json["balance"] == 20000
 
         # Verifica posição de CDB: permanece inalterada em 50000
-        resp_pos = ClientRequisition.send("GET", f"/accounts/{src_key}/yield-position", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_pos = ClientRequisition.send("GET", f"/account/{src_key}/yield-position", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_pos.response_json["principal_amount"] == 50000
 
     def test_transfer_with_insufficient_free_balance_triggers_automatic_cash_sweep_from_cdb(self) -> None:
@@ -92,7 +92,7 @@ class TestCashSweepTransfers:
         # Aporte de R$ 1.000,00 na conta de origem
         ClientRequisition.send(
             "POST",
-            "/transactions/cash-in",
+            "/cash-in",
             payload={"account_key": src_key, "amount": 100000},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -110,7 +110,7 @@ class TestCashSweepTransfers:
         # Transfere R$ 200,00 (20.000 centavos). Déficit: 15.000 centavos.
         resp_tx = ClientRequisition.send(
             "POST",
-            "/transactions/transfers",
+            "/transfer",
             payload={
                 "source_account_key": src_key,
                 "destination_account_key": dst_key,
@@ -123,19 +123,19 @@ class TestCashSweepTransfers:
         assert resp_tx.response_status == 200
 
         # Saldo livre após a transferência: 5000 + 15000 (resgate) - 20000 (débito) = 0
-        resp_bal = ClientRequisition.send("GET", f"/accounts/{src_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_bal = ClientRequisition.send("GET", f"/account/{src_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_bal.response_json["balance"] == 0
 
         # Destino recebeu os 20000
-        resp_dst_bal = ClientRequisition.send("GET", f"/accounts/{dst_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_dst_bal = ClientRequisition.send("GET", f"/account/{dst_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_dst_bal.response_json["balance"] == 20000
 
         # Posição de CDB: 95000 - 15000 = 80000
-        resp_pos = ClientRequisition.send("GET", f"/accounts/{src_key}/yield-position", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_pos = ClientRequisition.send("GET", f"/account/{src_key}/yield-position", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_pos.response_json["principal_amount"] == 80000
 
         # Verifica extrato da conta de origem: deve conter o resgate do Cash Sweep
-        resp_stmt = ClientRequisition.send("GET", f"/accounts/{src_key}/statement", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_stmt = ClientRequisition.send("GET", f"/account/{src_key}/statement", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         entries = resp_stmt.response_json
         assert any(e["entry_type"] == "CREDIT" and e["amount"] == 15000 and "Cash Sweep" in e["description"] for e in entries)
 
@@ -146,7 +146,7 @@ class TestCashSweepTransfers:
         # Aporte de R$ 100,00 na conta de origem
         ClientRequisition.send(
             "POST",
-            "/transactions/cash-in",
+            "/cash-in",
             payload={"account_key": src_key, "amount": 10000},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -164,7 +164,7 @@ class TestCashSweepTransfers:
         # Tenta transferir R$ 150,00 (15000 centavos) -> Deve falhar com 422
         resp_tx = ClientRequisition.send(
             "POST",
-            "/transactions/transfers",
+            "/transfer",
             payload={
                 "source_account_key": src_key,
                 "destination_account_key": dst_key,
@@ -178,8 +178,8 @@ class TestCashSweepTransfers:
         assert resp_tx.response_json["code"] == "QIT002005"
 
         # Saldos permanecem inalterados
-        resp_bal = ClientRequisition.send("GET", f"/accounts/{src_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_bal = ClientRequisition.send("GET", f"/account/{src_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_bal.response_json["balance"] == 4000
 
-        resp_pos = ClientRequisition.send("GET", f"/accounts/{src_key}/yield-position", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_pos = ClientRequisition.send("GET", f"/account/{src_key}/yield-position", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_pos.response_json["principal_amount"] == 6000

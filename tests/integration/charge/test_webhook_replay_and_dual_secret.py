@@ -34,12 +34,12 @@ class TestWebhookReplayAndDualSecret:
             "transaction_pin": "1234",
         }
 
-        resp = ClientRequisition.send("POST", "/customers", payload=payload, headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp = ClientRequisition.send("POST", "/customer", payload=payload, headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         customer_key = resp.response_json["customer_key"]
 
         resp_accounts = ClientRequisition.send(
             "POST",
-            f"/customers/{customer_key}/accounts",
+            f"/customer/{customer_key}/account",
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
         accounts = resp_accounts.response_json
@@ -49,7 +49,7 @@ class TestWebhookReplayAndDualSecret:
         due_date = (date.today() + timedelta(days=5)).isoformat()
         resp_charge = ClientRequisition.send(
             "POST",
-            f"/accounts/{pj_key}/charges",
+            f"/account/{pj_key}/charge",
             payload={"method": "PIX", "amount": amount, "due_date": due_date},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -72,7 +72,7 @@ class TestWebhookReplayAndDualSecret:
 
         resp = ClientRequisition.send(
             "POST",
-            "/webhooks/payments",
+            "/webhook/payment",
             payload=webhook_payload,
             headers={
                 "INTERNAL-TOKEN": INTERNAL_TOKEN,
@@ -100,7 +100,7 @@ class TestWebhookReplayAndDualSecret:
 
         resp = ClientRequisition.send(
             "POST",
-            "/webhooks/payments",
+            "/webhook/payment",
             payload=webhook_payload,
             headers={
                 "INTERNAL-TOKEN": INTERNAL_TOKEN,
@@ -128,7 +128,7 @@ class TestWebhookReplayAndDualSecret:
         # 1. Primeira requisição com o nonce deve ser aceita
         resp1 = ClientRequisition.send(
             "POST",
-            "/webhooks/payments",
+            "/webhook/payment",
             payload=webhook_payload,
             headers={
                 "INTERNAL-TOKEN": INTERNAL_TOKEN,
@@ -142,7 +142,7 @@ class TestWebhookReplayAndDualSecret:
         # 2. Segunda requisição com o MESMO nonce (ataque de repetição) deve ser rejeitada
         resp2 = ClientRequisition.send(
             "POST",
-            "/webhooks/payments",
+            "/webhook/payment",
             payload=webhook_payload,
             headers={
                 "INTERNAL-TOKEN": INTERNAL_TOKEN,
@@ -170,7 +170,7 @@ class TestWebhookReplayAndDualSecret:
 
         resp = ClientRequisition.send(
             "POST",
-            "/webhooks/payments",
+            "/webhook/payment",
             payload=webhook_payload,
             headers={
                 "INTERNAL-TOKEN": INTERNAL_TOKEN,

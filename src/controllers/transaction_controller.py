@@ -103,6 +103,7 @@ class TransactionController(BaseController):
                 response_body=response_body,
             )
 
+        self.context.db_session.commit()
         return response_body
 
     def execute_cash_in(self, payload: dict) -> dict:
@@ -122,6 +123,7 @@ class TransactionController(BaseController):
             type_enum="PIX_CASH_IN",
             description=description,
         )
+        self.context.db_session.commit()
         return TransactionDTO.obj_to_dict(tx)
 
     def get_statement(self, account_key: str, limit: int = 50, offset: int = 0) -> List[dict]:

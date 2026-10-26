@@ -1,8 +1,11 @@
+from fastapi import Request
 from fastapi import status as http_status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
 from controllers import AccountController
+from utils.pagination import parse_limit_offset
+from utils.schema_handler import SchemaHandler
 
 
 class AccountResource:
@@ -22,9 +25,10 @@ class AccountResource:
             status_code=http_status.HTTP_200_OK,
         )
 
-    def on_get_by_customer(self, customer_key: str) -> JSONResponse:
+    def on_get_by_customer(self, customer_key: str, request: Request) -> JSONResponse:
+        limit, offset = parse_limit_offset(request.query_params)
         controller = AccountController()
-        accounts = controller.get_by_customer(customer_key)
+        accounts = controller.get_by_customer(customer_key, limit=limit, offset=offset)
         return JSONResponse(
             content=jsonable_encoder(accounts),
             status_code=http_status.HTTP_200_OK,
@@ -38,6 +42,7 @@ class AccountResource:
             status_code=http_status.HTTP_200_OK,
         )
 
+    @SchemaHandler.validate("put_account_status.json")
     def on_put_status(self, account_key: str, payload: dict) -> JSONResponse:
         controller = AccountController()
         result = controller.update_status(account_key, payload)
@@ -46,6 +51,7 @@ class AccountResource:
             status_code=http_status.HTTP_202_ACCEPTED,
         )
 
+    @SchemaHandler.validate("put_account_blocked_balance.json")
     def on_put_blocked_balance(self, account_key: str, payload: dict) -> JSONResponse:
         controller = AccountController()
         result = controller.update_blocked_balance(account_key, payload)

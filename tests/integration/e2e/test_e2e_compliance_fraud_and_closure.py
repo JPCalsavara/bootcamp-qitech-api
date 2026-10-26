@@ -31,14 +31,14 @@ class TestE2EComplianceFraudAndClosure:
         }
 
         # 1. Onboarding
-        resp_cust = ClientRequisition.send("POST", "/customers", payload=payload, headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_cust = ClientRequisition.send("POST", "/customer", payload=payload, headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_cust.response_status == 202
         customer_key = resp_cust.response_json["customer_key"]
 
         # 2. Aprovação KYC
         resp_kyc = ClientRequisition.send(
             "POST",
-            f"/customers/{customer_key}/kyc/analysis",
+            f"/customer/{customer_key}/kyc/analysis",
             payload={"score": 800, "risk_tier": "LOW", "flags": {"pep": False, "sanctions": False}},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -47,7 +47,7 @@ class TestE2EComplianceFraudAndClosure:
         # 3. Provisionamento de contas gêmeas PF/PJ
         resp_acc = ClientRequisition.send(
             "POST",
-            f"/customers/{customer_key}/accounts",
+            f"/customer/{customer_key}/account",
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
         assert resp_acc.response_status == 201
@@ -63,7 +63,7 @@ class TestE2EComplianceFraudAndClosure:
         # 1. Aporte / Venda Pix de R$ 5.000,00 na conta PJ
         resp_cashin = ClientRequisition.send(
             "POST",
-            "/transactions/cash-in",
+            "/cash-in",
             payload={"account_key": pj_key, "amount": 500000, "description": "Venda Pix suspeita"},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -72,7 +72,7 @@ class TestE2EComplianceFraudAndClosure:
         # 2. Notificação de Infração Bacen / Bloqueio Cautelar MED de R$ 4.000,00
         resp_med = ClientRequisition.send(
             "PUT",
-            f"/accounts/{pj_key}/blocked-balance",
+            f"/account/{pj_key}/blocked-balance",
             payload={
                 "operation": "BLOCK",
                 "amount": 400000,
@@ -89,7 +89,7 @@ class TestE2EComplianceFraudAndClosure:
         # Deve ser bloqueado porque o saldo disponível livre é de apenas R$ 1.000,00
         resp_transfer_fail = ClientRequisition.send(
             "POST",
-            "/transactions/transfers",
+            "/transfer",
             payload={
                 "source_account_key": pj_key,
                 "destination_account_key": pf_key,
@@ -105,7 +105,7 @@ class TestE2EComplianceFraudAndClosure:
         # 4. Transferência legítima dentro do saldo disponível (R$ 500,00) deve passar
         resp_transfer_ok = ClientRequisition.send(
             "POST",
-            "/transactions/transfers",
+            "/transfer",
             payload={
                 "source_account_key": pj_key,
                 "destination_account_key": pf_key,
@@ -122,7 +122,7 @@ class TestE2EComplianceFraudAndClosure:
         # Permite fechamento imediato mesmo com saldo residual
         resp_force_close = ClientRequisition.send(
             "PUT",
-            f"/accounts/{pj_key}/status",
+            f"/account/{pj_key}/status",
             payload={
                 "status": "closed",
                 "reason_code": "COMPLIANCE_FRAUD",
@@ -136,7 +136,7 @@ class TestE2EComplianceFraudAndClosure:
         # 6. Tentar reabrir conta encerrada por fraude é proibido (409)
         resp_reopen = ClientRequisition.send(
             "PUT",
-            f"/accounts/{pj_key}/status",
+            f"/account/{pj_key}/status",
             payload={
                 "status": "active",
                 "reason_code": "VOLUNTARY",
@@ -154,7 +154,7 @@ class TestE2EComplianceFraudAndClosure:
         # 1. Conta acumula saldo comercial de R$ 1.500,00
         ClientRequisition.send(
             "POST",
-            "/transactions/cash-in",
+            "/cash-in",
             payload={"account_key": pj_key, "amount": 150000, "description": "Faturamento Comercial"},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -162,7 +162,7 @@ class TestE2EComplianceFraudAndClosure:
         # 2. Cliente tenta encerrar a conta com saldo positivo -> Rejeitado (409 ADR-0007)
         resp_close_fail = ClientRequisition.send(
             "PUT",
-            f"/accounts/{pj_key}/status",
+            f"/account/{pj_key}/status",
             payload={
                 "status": "closed",
                 "reason_code": "VOLUNTARY",
@@ -176,7 +176,7 @@ class TestE2EComplianceFraudAndClosure:
         # 3. Cliente resgata todo o saldo transferindo para a conta PF (R$ 1.500,00)
         resp_transfer = ClientRequisition.send(
             "POST",
-            "/transactions/transfers",
+            "/transfer",
             payload={
                 "source_account_key": pj_key,
                 "destination_account_key": pf_key,
@@ -189,13 +189,13 @@ class TestE2EComplianceFraudAndClosure:
         assert resp_transfer.response_status == 200
 
         # Verifica saldo zerado na PJ
-        resp_bal = ClientRequisition.send("GET", f"/accounts/{pj_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_bal = ClientRequisition.send("GET", f"/account/{pj_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_bal.response_json["balance"] == 0
 
         # 4. Agora a solicitação de encerramento voluntário é aceita!
         resp_close_ok = ClientRequisition.send(
             "PUT",
-            f"/accounts/{pj_key}/status",
+            f"/account/{pj_key}/status",
             payload={
                 "status": "closed",
                 "reason_code": "VOLUNTARY",

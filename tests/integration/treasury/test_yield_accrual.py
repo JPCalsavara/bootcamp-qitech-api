@@ -24,12 +24,12 @@ class TestYieldAccrual:
             "transaction_pin": "1234",
         }
 
-        resp = ClientRequisition.send("POST", "/customers", payload=payload, headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp = ClientRequisition.send("POST", "/customer", payload=payload, headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         customer_key = resp.response_json["customer_key"]
 
         resp_accounts = ClientRequisition.send(
             "POST",
-            f"/customers/{customer_key}/accounts",
+            f"/customer/{customer_key}/account",
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
         accounts = resp_accounts.response_json
@@ -39,7 +39,7 @@ class TestYieldAccrual:
         # Aporte de saldo
         ClientRequisition.send(
             "POST",
-            "/transactions/cash-in",
+            "/cash-in",
             payload={"account_key": pj_key, "amount": amount},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -63,12 +63,12 @@ class TestYieldAccrual:
         assert event["net_yield"] == event["gross_yield"] - event["ir_withheld"] - event["iof_withheld"]
 
         # Verifica crédito no Ledger com tipo TREASURY_YIELD
-        resp_stmt = ClientRequisition.send("GET", f"/accounts/{pj_key}/statement", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_stmt = ClientRequisition.send("GET", f"/account/{pj_key}/statement", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         entries = resp_stmt.response_json
         assert any(e["entry_type"] == "CREDIT" and e["amount"] == event["net_yield"] for e in entries)
 
         # Consulta posição acumulada
-        resp_pos = ClientRequisition.send("GET", f"/accounts/{pj_key}/yield-position", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_pos = ClientRequisition.send("GET", f"/account/{pj_key}/yield-position", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_pos.response_status == 200
         pos = resp_pos.response_json
         assert pos["accumulated_yield"] == event["gross_yield"]

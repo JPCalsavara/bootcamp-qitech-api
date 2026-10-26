@@ -25,12 +25,12 @@ class TestCrossGuarantee:
             "transaction_pin": "1234",
         }
 
-        resp = ClientRequisition.send("POST", "/customers", payload=payload, headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp = ClientRequisition.send("POST", "/customer", payload=payload, headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         customer_key = resp.response_json["customer_key"]
 
         resp_accounts = ClientRequisition.send(
             "POST",
-            f"/customers/{customer_key}/accounts",
+            f"/customer/{customer_key}/account",
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
         accounts = resp_accounts.response_json
@@ -50,7 +50,7 @@ class TestCrossGuarantee:
         }
         resp = ClientRequisition.send(
             "POST",
-            "/credit/contracts",
+            "/credit/contract",
             payload=contract_payload,
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -65,7 +65,7 @@ class TestCrossGuarantee:
         # Aporte de saldo na conta PF
         ClientRequisition.send(
             "POST",
-            "/transactions/cash-in",
+            "/cash-in",
             payload={"account_key": pf_key, "amount": 500000},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -85,11 +85,11 @@ class TestCrossGuarantee:
         assert data["settled_installments"] == 0
 
         # Verifica que o saldo na conta PF não foi debitado
-        resp_bal = ClientRequisition.send("GET", f"/accounts/{pf_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_bal = ClientRequisition.send("GET", f"/account/{pf_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_bal.response_json["balance"] == 500000
 
         # Verifica contrato: parcela 1 continua OPEN
-        resp_contract = ClientRequisition.send("GET", f"/credit/contracts/{contract_key}", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_contract = ClientRequisition.send("GET", f"/credit/contract/{contract_key}", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_contract.response_json["installments"][0]["status"] == "OPEN"
 
     def test_cross_guarantee_settles_overdue_installment_from_personal_account(self) -> None:
@@ -102,7 +102,7 @@ class TestCrossGuarantee:
         # Aporte de saldo na conta PF para cobrir a parcela
         ClientRequisition.send(
             "POST",
-            "/transactions/cash-in",
+            "/cash-in",
             payload={"account_key": pf_key, "amount": 300000},
             headers={"INTERNAL-TOKEN": INTERNAL_TOKEN},
         )
@@ -123,16 +123,16 @@ class TestCrossGuarantee:
         assert data["total_settled_amount"] == inst_amount
 
         # Verifica saldo na conta PF: debitado exatamente no valor da parcela
-        resp_bal = ClientRequisition.send("GET", f"/accounts/{pf_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_bal = ClientRequisition.send("GET", f"/account/{pf_key}/balance", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_bal.response_json["balance"] == 300000 - inst_amount
 
         # Verifica contrato: parcela 1 agora está PAID
-        resp_contract = ClientRequisition.send("GET", f"/credit/contracts/{contract_key}", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_contract = ClientRequisition.send("GET", f"/credit/contract/{contract_key}", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_contract.response_json["installments"][0]["status"] == "PAID"
         assert resp_contract.response_json["installments"][0]["paid_amount"] == inst_amount
 
         # Verifica extrato PF: lançamento de débito da garantia cruzada registrado
-        resp_stmt = ClientRequisition.send("GET", f"/accounts/{pf_key}/statement", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_stmt = ClientRequisition.send("GET", f"/account/{pf_key}/statement", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         entries = resp_stmt.response_json
         assert any(e["entry_type"] == "DEBIT" and e["amount"] == inst_amount and "Garantia Cruzada" in e["description"] for e in entries)
 
@@ -155,6 +155,6 @@ class TestCrossGuarantee:
         assert data["settled_installments"] == 0
 
         # Verifica contrato: parcela 1 marcada como OVERDUE e contrato marcado como defaulted
-        resp_contract = ClientRequisition.send("GET", f"/credit/contracts/{contract_key}", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
+        resp_contract = ClientRequisition.send("GET", f"/credit/contract/{contract_key}", headers={"INTERNAL-TOKEN": INTERNAL_TOKEN})
         assert resp_contract.response_json["installments"][0]["status"] == "OVERDUE"
         assert resp_contract.response_json["status"] == "defaulted"
